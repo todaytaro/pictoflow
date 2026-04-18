@@ -422,10 +422,11 @@ async function signup(id) {
   btn.textContent = '送信中...';
   btn.disabled = true;
   try {
+    const formData = new FormData();
+    formData.append('email', val);
     await fetch('https://submit.formspark.io/f/WjzYCSILG', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({ email: val })
+      body: formData
     });
     inp.value = '';
     const t = document.getElementById('toast');
