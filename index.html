@@ -421,23 +421,26 @@ async function signup(id) {
   const btn = inp.closest('.hero-form').querySelector('button');
   btn.textContent = '送信中...';
   btn.disabled = true;
+
+  // Google Forms経由で送信（no-corsで確実に動く）
+  const FORM_ID = '1FAIpQLScvtaB1VbVcUAdsF1XntDqcU7Of0OmfagEzwFSoC0JJQ4SO8g';
+  const ENTRY_ID = 'entry.589296152'; // メールアドレスフィールド
+  const url = `https://docs.google.com/forms/d/e/${FORM_ID}/formResponse`;
+  const body = new FormData();
+  body.append(ENTRY_ID, val);
+
   try {
-    const formData = new FormData();
-    formData.append('email', val);
-    await fetch('https://submit.formspark.io/f/WjzYCSILG', {
-      method: 'POST',
-      body: formData
-    });
-    inp.value = '';
-    const t = document.getElementById('toast');
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 4000);
+    await fetch(url, { method: 'POST', body, mode: 'no-cors' });
   } catch(e) {
-    alert('送信に失敗しました。もう一度お試しください。');
-  } finally {
-    btn.textContent = id === 'hero-email' ? '無料で始める →' : '先行登録する →';
-    btn.disabled = false;
+    // no-corsでは常にopaqueレスポンスなのでエラーは無視
   }
+
+  inp.value = '';
+  btn.textContent = id === 'hero-email' ? '無料で始める →' : '先行登録する →';
+  btn.disabled = false;
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
 }
 
 document.querySelectorAll('a[href^="#"]').forEach(a => {
