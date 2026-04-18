@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PictoFlow — AIで商品画像を、秒で量産。</title>
+<meta name="description" content="プロンプト不要。ブランドの雰囲気を学習したAIが、SNS・LP・バナー用の商品画像を10秒で生成。中小EC事業者向けAI画像生成SaaS。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=Noto+Sans+JP:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0a0a0f;
+  --paper: #f5f3ee;
+  --accent: #1a56ff;
+  --accent2: #ff3d1a;
+  --mid: #6b6b78;
+  --border: rgba(10,10,15,0.10);
+  --card: #ffffff;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--paper); color: var(--ink); overflow-x: hidden; font-weight: 300; }
+
+/* NAV */
+nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; display: flex; align-items: center; justify-content: space-between; padding: 1.25rem 5vw; background: rgba(245,243,238,0.88); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); }
+.logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.4rem; color: var(--ink); text-decoration: none; letter-spacing: -0.03em; }
+.logo span { color: var(--accent); }
+nav ul { list-style: none; display: flex; gap: 2rem; align-items: center; }
+nav ul a { text-decoration: none; color: var(--mid); font-size: 0.875rem; font-weight: 400; transition: color 0.2s; }
+nav ul a:hover { color: var(--ink); }
+.nav-cta { background: var(--ink) !important; color: var(--paper) !important; padding: 0.55rem 1.3rem; border-radius: 100px; font-weight: 500 !important; font-size: 0.85rem !important; transition: background 0.2s, transform 0.15s !important; }
+.nav-cta:hover { background: var(--accent) !important; }
+
+/* HERO */
+.hero { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; align-items: center; padding: 8rem 5vw 5rem; gap: 5rem; }
+.hero-eyebrow { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.78rem; font-weight: 500; color: var(--accent); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 1.5rem; opacity: 0; animation: fadeUp 0.7s 0.1s ease forwards; }
+.hero-eyebrow::before { content: ''; display: inline-block; width: 24px; height: 1px; background: var(--accent); }
+h1 { font-family: 'Syne', sans-serif; font-size: clamp(3rem, 7vw, 6.5rem); font-weight: 800; line-height: 0.95; letter-spacing: -0.04em; margin-bottom: 1.75rem; opacity: 0; animation: fadeUp 0.7s 0.2s ease forwards; }
+h1 em { font-style: normal; color: var(--accent); position: relative; }
+h1 em::after { content: ''; position: absolute; bottom: 3px; left: 0; right: 0; height: 5px; background: var(--accent2); opacity: 0.45; border-radius: 2px; }
+.hero-sub { font-size: 1.05rem; color: var(--mid); line-height: 1.8; max-width: 480px; margin-bottom: 2.5rem; font-weight: 300; opacity: 0; animation: fadeUp 0.7s 0.3s ease forwards; }
+.hero-form { display: flex; gap: 0.75rem; flex-wrap: wrap; opacity: 0; animation: fadeUp 0.7s 0.4s ease forwards; }
+.hero-form input { flex: 1; min-width: 220px; padding: 0.9rem 1.25rem; border: 1.5px solid var(--border); border-radius: 100px; background: white; font-family: 'Noto Sans JP', sans-serif; font-size: 0.95rem; color: var(--ink); outline: none; transition: border-color 0.2s; }
+.hero-form input:focus { border-color: var(--accent); }
+.hero-form input::placeholder { color: #bbb; }
+.btn-primary { padding: 0.9rem 2rem; background: var(--accent); color: white; border: none; border-radius: 100px; font-family: 'Noto Sans JP', sans-serif; font-size: 0.95rem; font-weight: 700; cursor: pointer; transition: transform 0.15s, background 0.2s; white-space: nowrap; }
+.btn-primary:hover { background: #0040e0; transform: scale(1.03); }
+.hero-note { margin-top: 1rem; font-size: 0.78rem; color: var(--mid); opacity: 0; animation: fadeUp 0.7s 0.5s ease forwards; }
+
+/* HERO VISUAL */
+.hero-visual { opacity: 0; animation: fadeIn 1s 0.6s ease forwards; position: relative; }
+.mockup-window { background: white; border-radius: 22px; box-shadow: 0 40px 100px rgba(0,0,0,0.13), 0 0 0 1px var(--border); overflow: hidden; }
+.mockup-bar { background: #f0eeea; padding: 0.8rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border); }
+.dot { width: 10px; height: 10px; border-radius: 50%; }
+.d-r { background: #ff5f57; } .d-y { background: #febc2e; } .d-g { background: #28c840; }
+.mockup-body { padding: 1.5rem; }
+.m-label { font-size: 0.7rem; font-weight: 500; color: var(--mid); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.6rem; }
+.pill-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; margin-bottom: 1rem; }
+.pill { background: #f5f3ee; border: 1.5px solid var(--border); border-radius: 10px; padding: 0.55rem 0.75rem; font-size: 0.78rem; color: var(--mid); text-align: center; font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: all 0.15s; }
+.pill.on { background: var(--accent); border-color: var(--accent); color: white; font-weight: 500; }
+.gen-btn { width: 100%; padding: 0.78rem; background: var(--ink); color: white; border: none; border-radius: 10px; font-family: 'Noto Sans JP', sans-serif; font-size: 0.875rem; font-weight: 500; cursor: pointer; margin-bottom: 1rem; letter-spacing: 0.02em; }
+.img-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 0.5rem; }
+.img-ph { aspect-ratio: 1; border-radius: 10px; display: flex; align-items: center; justify-content: center; position: relative; }
+.img-ph:nth-child(1) { background: linear-gradient(135deg, #e0eeff, #b8d4ff); }
+.img-ph:nth-child(2) { background: linear-gradient(135deg, #fff0e0, #ffd4aa); }
+.img-ph:nth-child(3) { background: linear-gradient(135deg, #e0fff4, #aaffd8); }
+.img-ph svg { width: 28px; height: 28px; opacity: 0.35; }
+.new-badge { position: absolute; top: 5px; right: 5px; background: var(--accent2); color: white; font-size: 0.58rem; font-weight: 700; padding: 2px 6px; border-radius: 100px; }
+.stat-bubble { position: absolute; bottom: -1.25rem; left: -1.75rem; background: white; border-radius: 14px; padding: 0.9rem 1.1rem; box-shadow: 0 16px 48px rgba(0,0,0,0.13), 0 0 0 1px var(--border); display: flex; align-items: center; gap: 0.7rem; }
+.stat-icon { width: 34px; height: 34px; background: #eef2ff; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 1rem; }
+.stat-big { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.35rem; color: var(--ink); line-height: 1; }
+.stat-sm { font-size: 0.7rem; color: var(--mid); margin-top: 2px; }
+
+/* SECTIONS */
+section { padding: 7rem 5vw; }
+.tag { display: inline-flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; font-weight: 500; color: var(--accent); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 1.25rem; }
+.tag::before { content: ''; width: 20px; height: 1px; background: var(--accent); }
+h2 { font-family: 'Syne', sans-serif; font-size: clamp(2rem, 4vw, 3.5rem); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; margin-bottom: 1rem; }
+
+/* PAIN */
+.pain { background: var(--ink); color: var(--paper); }
+.pain h2 { color: var(--paper); }
+.pain .tag { color: rgba(245,243,238,0.45); }
+.pain .tag::before { background: rgba(245,243,238,0.45); }
+.pain-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1.5px; margin-top: 3rem; background: rgba(255,255,255,0.07); border-radius: 20px; overflow: hidden; }
+.pain-item { padding: 2.5rem 2rem; background: var(--ink); }
+.pain-n { font-family: 'Syne', sans-serif; font-size: 2.8rem; font-weight: 800; color: var(--accent2); opacity: 0.55; line-height: 1; margin-bottom: 0.75rem; }
+.pain-t { font-size: 1.05rem; font-weight: 500; color: var(--paper); margin-bottom: 0.65rem; }
+.pain-d { font-size: 0.875rem; color: rgba(245,243,238,0.5); line-height: 1.7; }
+
+/* HOW */
+.how-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 6rem; align-items: center; }
+.steps { margin-top: 2rem; }
+.step { display: flex; gap: 1.5rem; padding: 1.6rem 0; border-bottom: 1px solid var(--border); }
+.step:last-child { border-bottom: none; }
+.step-n { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.9rem; color: var(--accent); opacity: 0.22; line-height: 1; flex-shrink: 0; width: 2rem; }
+.step-t { font-weight: 700; font-size: 0.97rem; margin-bottom: 0.35rem; }
+.step-d { font-size: 0.87rem; color: var(--mid); line-height: 1.65; }
+.num-card { background: var(--ink); border-radius: 22px; padding: 3rem 2.5rem; color: white; position: relative; overflow: hidden; }
+.num-card::before { content: ''; position: absolute; top: -80px; right: -80px; width: 300px; height: 300px; background: var(--accent); opacity: 0.07; border-radius: 50%; }
+.big-n { font-family: 'Syne', sans-serif; font-size: 4.5rem; font-weight: 800; color: var(--accent); line-height: 1; }
+.big-n sub { font-size: 2rem; }
+.big-n-lbl { font-size: 0.9rem; color: rgba(255,255,255,0.5); margin: 0.25rem 0 2rem; }
+.mini-list { display: flex; flex-direction: column; gap: 0.85rem; }
+.mini-row { display: flex; justify-content: space-between; align-items: center; padding: 0.7rem 1rem; background: rgba(255,255,255,0.06); border-radius: 10px; }
+.mini-lbl { font-size: 0.8rem; color: rgba(255,255,255,0.45); }
+.mini-val { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.97rem; color: white; }
+
+/* PRICING */
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.25rem; margin-top: 3.5rem; align-items: start; }
+.pcard { background: white; border: 1.5px solid var(--border); border-radius: 20px; padding: 2rem 1.75rem; position: relative; transition: transform 0.2s, box-shadow 0.2s; }
+.pcard:hover { transform: translateY(-4px); box-shadow: 0 24px 64px rgba(0,0,0,0.08); }
+.pcard.feat { background: var(--ink); border-color: var(--ink); color: white; transform: scale(1.04); }
+.pcard.feat:hover { transform: scale(1.04) translateY(-4px); }
+.feat-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: white; font-size: 0.68rem; font-weight: 700; padding: 3px 14px; border-radius: 100px; letter-spacing: 0.08em; white-space: nowrap; }
+.plan-n { font-size: 0.75rem; font-weight: 500; color: var(--mid); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.75rem; }
+.pcard.feat .plan-n { color: rgba(255,255,255,0.45); }
+.price-a { font-family: 'Syne', sans-serif; font-size: 2.6rem; font-weight: 800; line-height: 1; }
+.price-p { font-size: 0.78rem; color: var(--mid); margin-bottom: 1.5rem; }
+.pcard.feat .price-p { color: rgba(255,255,255,0.45); }
+.pdiv { height: 1px; background: var(--border); margin-bottom: 1.5rem; }
+.pcard.feat .pdiv { background: rgba(255,255,255,0.12); }
+.feats { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.75rem; }
+.feats li { font-size: 0.855rem; color: var(--mid); display: flex; align-items: flex-start; gap: 0.55rem; line-height: 1.5; }
+.pcard.feat .feats li { color: rgba(255,255,255,0.65); }
+.feats li::before { content: '✓'; color: var(--accent); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.pcta { display: block; width: 100%; padding: 0.85rem; text-align: center; border-radius: 100px; font-family: 'Noto Sans JP', sans-serif; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s; text-decoration: none; border: 2px solid var(--ink); color: var(--ink); background: transparent; }
+.pcta:hover { background: var(--ink); color: white; }
+.pcard.feat .pcta { background: var(--accent); border-color: var(--accent); color: white; }
+.pcard.feat .pcta:hover { background: #0040e0; border-color: #0040e0; }
+
+/* PROOF */
+.proof-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 3rem; }
+.prcard { background: white; border: 1px solid var(--border); border-radius: 18px; padding: 1.75rem; }
+.stars { color: #f59e0b; font-size: 0.85rem; margin-bottom: 0.85rem; letter-spacing: 2px; }
+.prtext { font-size: 0.9rem; line-height: 1.72; color: var(--ink); margin-bottom: 1.25rem; }
+.prauthor { display: flex; align-items: center; gap: 0.7rem; }
+.pravatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.82rem; color: white; flex-shrink: 0; }
+.prname { font-size: 0.83rem; font-weight: 500; }
+.prrole { font-size: 0.73rem; color: var(--mid); }
+
+/* CTA SECTION */
+.cta-sec { background: var(--accent); color: white; text-align: center; }
+.cta-sec h2 { color: white; }
+.cta-sec .hero-form { justify-content: center; margin-top: 2.5rem; }
+.cta-sec .hero-form input { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.3); color: white; }
+.cta-sec .hero-form input::placeholder { color: rgba(255,255,255,0.55); }
+.cta-sec .btn-primary { background: white; color: var(--accent); }
+.cta-sec .btn-primary:hover { background: var(--ink); color: white; }
+.cta-note { margin-top: 1rem; font-size: 0.78rem; opacity: 0.65; }
+
+/* FOOTER */
+footer { background: var(--ink); color: rgba(245,243,238,0.45); padding: 2.5rem 5vw; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem; }
+.flogo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1.2rem; color: var(--paper); }
+.flogo span { color: var(--accent); }
+.flinks { display: flex; gap: 1.5rem; }
+.flinks a { color: rgba(245,243,238,0.38); text-decoration: none; font-size: 0.78rem; transition: color 0.2s; }
+.flinks a:hover { color: var(--paper); }
+footer p { font-size: 0.75rem; }
+
+/* ANIMATIONS */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.65s ease, transform 0.65s ease; }
+.reveal.vis { opacity: 1; transform: translateY(0); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(120px); background: var(--ink); color: white; padding: 0.9rem 1.75rem; border-radius: 100px; font-size: 0.88rem; font-weight: 500; box-shadow: 0 16px 48px rgba(0,0,0,0.2); z-index: 9000; transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 900px) {
+  .hero { grid-template-columns: 1fr; padding-top: 6.5rem; }
+  .hero-visual { display: none; }
+  .how-inner { grid-template-columns: 1fr; gap: 3rem; }
+  nav ul { display: none; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="#" class="logo">Picto<span>Flow</span></a>
+  <ul>
+    <li><a href="#how">使い方</a></li>
+    <li><a href="#pricing">料金</a></li>
+    <li><a href="#voice">導入事例</a></li>
+    <li><a href="#waitlist" class="nav-cta">無料で試す</a></li>
+  </ul>
+</nav>
+
+<section class="hero">
+  <div class="hero-text">
+    <p class="hero-eyebrow">AI画像生成 for EC事業者</p>
+    <h1>商品画像を、<br><em>秒</em>で量産。</h1>
+    <p class="hero-sub">プロンプト不要。あなたのブランドを学習したAIが、SNS・LP・バナー用の商品画像を10秒で量産します。撮影費用と制作時間から、解放されよう。</p>
+    <div class="hero-form">
+      <input type="email" id="hero-email" placeholder="メールアドレスを入力" autocomplete="email">
+      <button class="btn-primary" onclick="signup('hero-email')">無料で始める →</button>
+    </div>
+    <p class="hero-note">クレジットカード不要 · 初月30枚まで無料 · いつでも解約可</p>
+  </div>
+  <div class="hero-visual">
+    <div class="mockup-window">
+      <div class="mockup-bar">
+        <div class="dot d-r"></div><div class="dot d-y"></div><div class="dot d-g"></div>
+      </div>
+      <div class="mockup-body">
+        <div class="m-label">用途を選択</div>
+        <div class="pill-row">
+          <div class="pill on">Instagram投稿</div>
+          <div class="pill">Storyバナー</div>
+          <div class="pill">楽天バナー</div>
+          <div class="pill">LPヒーロー</div>
+        </div>
+        <div class="m-label">雰囲気</div>
+        <div class="pill-row">
+          <div class="pill on">ナチュラル</div>
+          <div class="pill">高級感</div>
+          <div class="pill">ポップ</div>
+          <div class="pill">ミニマル</div>
+        </div>
+        <button class="gen-btn">✦ 画像を生成する（10秒）</button>
+        <div class="img-grid">
+          <div class="img-ph">
+            <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#88a" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="#88a"/><path d="M3 16l5-5 4 4 3-3 6 6" stroke="#88a" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <div class="new-badge">NEW</div>
+          </div>
+          <div class="img-ph"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#88a" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="#88a"/><path d="M3 16l5-5 4 4 3-3 6 6" stroke="#88a" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+          <div class="img-ph"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="3" stroke="#88a" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" fill="#88a"/><path d="M3 16l5-5 4 4 3-3 6 6" stroke="#88a" stroke-width="1.5" stroke-linecap="round"/></svg></div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-bubble">
+      <div class="stat-icon">⚡</div>
+      <div>
+        <div class="stat-big">10<span style="font-size:1rem;font-family:'Syne',sans-serif">秒</span></div>
+        <div class="stat-sm">平均生成時間</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="pain">
+  <div class="tag">The Problem</div>
+  <h2 style="max-width:600px;">EC担当者の「画像問題」、<br>もう限界じゃないですか。</h2>
+  <div class="pain-grid reveal">
+    <div class="pain-item">
+      <div class="pain-n">01</div>
+      <div class="pain-t">撮影費用が高すぎる</div>
+      <div class="pain-d">新商品が出るたびに10〜30万円のスタジオ撮影。季節ごとのバリエーション展開はもはや予算的に不可能。</div>
+    </div>
+    <div class="pain-item">
+      <div class="pain-n">02</div>
+      <div class="pain-t">AIは難しすぎた</div>
+      <div class="pain-d">ChatGPT、Midjourney、Stable Diffusion…試したが「プロンプト」が呪文すぎて断念。結局Canvaに戻った。</div>
+    </div>
+    <div class="pain-item">
+      <div class="pain-n">03</div>
+      <div class="pain-t">ブランドがブレる</div>
+      <div class="pain-d">外注すると毎回雰囲気が違う。AIで生成すると自分のブランドっぽくない。品質のバラつきを直すのに時間がかかる。</div>
+    </div>
+  </div>
+</section>
+
+<section id="how">
+  <div class="how-inner">
+    <div>
+      <div class="tag">How it works</div>
+      <h2>3ステップで<br>完成する。</h2>
+      <div class="steps reveal">
+        <div class="step">
+          <div class="step-n">1</div>
+          <div><div class="step-t">ブランドキットを登録（初回のみ）</div><div class="step-d">ブランドカラー・参考画像・NGワードを登録するだけ。以降の生成はすべてあなたのブランドに合わせて出力されます。</div></div>
+        </div>
+        <div class="step">
+          <div class="step-n">2</div>
+          <div><div class="step-t">用途・雰囲気をプルダウンで選ぶ</div><div class="step-d">「Instagram用」「ナチュラルな雰囲気」「縦型」──選ぶだけ。プロンプトは一切不要。呪文を覚えなくていい。</div></div>
+        </div>
+        <div class="step">
+          <div class="step-n">3</div>
+          <div><div class="step-t">10秒で4〜8パターンを生成・即DL</div><div class="step-d">気に入ったものを選んでダウンロード。SNSに貼る・LPに載せる。月に何百枚でも。</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="reveal">
+      <div class="num-card">
+        <div class="big-n">1<sub>/20</sub></div>
+        <div class="big-n-lbl">外注・撮影コストとの比較</div>
+        <div class="mini-list">
+          <div class="mini-row"><span class="mini-lbl">撮影1回（外注）</span><span class="mini-val">¥100,000〜</span></div>
+          <div class="mini-row"><span class="mini-lbl">PictoFlow（月額）</span><span class="mini-val">¥9,800〜</span></div>
+          <div class="mini-row"><span class="mini-lbl">月に生成できる枚数</span><span class="mini-val">2,000枚</span></div>
+          <div class="mini-row"><span class="mini-lbl">1枚あたりのコスト</span><span class="mini-val">約5円</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="voice" style="background:white;">
+  <div class="tag">Voice</div>
+  <h2>先行ユーザーの声</h2>
+  <div class="proof-grid reveal">
+    <div class="prcard">
+      <div class="stars">★★★★★</div>
+      <p class="prtext">「撮影のたびに15万円かけていたのが、月9,800円になった。しかもバリエーションは10倍以上出せる。正直、もっと早く使いたかった。」</p>
+      <div class="prauthor"><div class="pravatar" style="background:#1a56ff">TK</div><div><div class="prname">田中 K.</div><div class="prrole">コスメEC / Shopify年商4,000万円</div></div></div>
+    </div>
+    <div class="prcard">
+      <div class="stars">★★★★★</div>
+      <p class="prtext">「AIは難しいと思っていたが、選ぶだけで完結するのが衝撃。ブランドの雰囲気も崩れない。デザイン知識ゼロの自分でも使えている。」</p>
+      <div class="prauthor"><div class="pravatar" style="background:#16a34a">SM</div><div><div class="prname">鈴木 M.</div><div class="prrole">食品EC担当 / BASE運営</div></div></div>
+    </div>
+    <div class="prcard">
+      <div class="stars">★★★★☆</div>
+      <p class="prtext">「クリスマス用バナーを10パターン、30分で作り切れた。今まで外注で2週間・3万円かかっていたのが信じられない。」</p>
+      <div class="prauthor"><div class="pravatar" style="background:#dc2626">YO</div><div><div class="prname">山本 O.</div><div class="prrole">雑貨ブランド / Instagram 2.8万フォロワー</div></div></div>
+    </div>
+  </div>
+  <p style="font-size:0.73rem;color:var(--mid);margin-top:1.25rem;text-align:center;">※ βテスターのコメントを元にした参考例です。現在β招待受付中。</p>
+</section>
+
+<section id="pricing">
+  <div class="tag">Pricing</div>
+  <h2>シンプルな料金体系。</h2>
+  <p style="color:var(--mid);font-size:0.95rem;">まず無料で試してください。クレジットカード不要。</p>
+  <div class="pricing-grid reveal">
+    <div class="pcard">
+      <div class="plan-n">Free</div>
+      <div class="price-a">¥0</div>
+      <div class="price-p">/ 月</div>
+      <div class="pdiv"></div>
+      <ul class="feats">
+        <li>月30枚まで生成</li>
+        <li>ブランドキット 1件</li>
+        <li>標準出力サイズ</li>
+        <li>生成履歴 7日間</li>
+      </ul>
+      <a href="#waitlist" class="pcta">無料で始める</a>
+    </div>
+    <div class="pcard feat">
+      <div class="feat-badge">最人気 · おすすめ</div>
+      <div class="plan-n">Business</div>
+      <div class="price-a">¥9,800</div>
+      <div class="price-p">/ 月（税込）</div>
+      <div class="pdiv"></div>
+      <ul class="feats">
+        <li>月2,000枚まで生成</li>
+        <li>ブランドキット 3件</li>
+        <li>全サイズ自動調整</li>
+        <li>バリエーション一括生成（4〜8枚）</li>
+        <li>生成履歴 無制限保存</li>
+        <li>チーム3名まで</li>
+        <li>優先メールサポート</li>
+      </ul>
+      <a href="#waitlist" class="pcta">2週間無料で試す</a>
+    </div>
+    <div class="pcard">
+      <div class="plan-n">Pro</div>
+      <div class="price-a">¥29,800</div>
+      <div class="price-p">/ 月（税込）</div>
+      <div class="pdiv"></div>
+      <ul class="feats">
+        <li>生成枚数 無制限</li>
+        <li>ブランドキット 無制限</li>
+        <li>API連携（Shopify等）</li>
+        <li>チーム10名まで</li>
+        <li>専任サポート</li>
+        <li>SLA保証</li>
+      </ul>
+      <a href="#waitlist" class="pcta">お問い合わせ</a>
+    </div>
+  </div>
+</section>
+
+<section id="waitlist" class="cta-sec">
+  <div class="tag" style="color:rgba(255,255,255,0.55);justify-content:center;">Early Access</div>
+  <h2>今すぐ、<br>撮影費用を削ろう。</h2>
+  <p style="color:rgba(255,255,255,0.7);margin-top:0.5rem;font-size:1rem;">先行登録で初月Businessプランを無料でお試しいただけます。</p>
+  <div class="hero-form">
+    <input type="email" id="cta-email" placeholder="メールアドレスを入力">
+    <button class="btn-primary" onclick="signup('cta-email')">先行登録する →</button>
+  </div>
+  <p class="cta-note">クレジットカード不要 · スパムは送りません · いつでも解除可能</p>
+</section>
+
+<footer>
+  <div class="flogo">Picto<span>Flow</span></div>
+  <div class="flinks">
+    <a href="#">プライバシーポリシー</a>
+    <a href="#">利用規約</a>
+    <a href="#">お問い合わせ</a>
+  </div>
+  <p>© 2026 PictoFlow. All rights reserved.</p>
+</footer>
+
+<div class="toast" id="toast">✅ 登録完了！リリース時にご連絡します。</div>
+
+<script>
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('vis'); });
+}, { threshold: 0.12 });
+document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+document.querySelectorAll('.pill').forEach(p => {
+  p.addEventListener('click', function() {
+    this.closest('.pill-row').querySelectorAll('.pill').forEach(x => x.classList.remove('on'));
+    this.classList.add('on');
+  });
+});
+
+function signup(id) {
+  const inp = document.getElementById(id);
+  const val = inp.value.trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+    inp.style.borderColor = '#ff3d1a';
+    setTimeout(() => inp.style.borderColor = '', 2000);
+    return;
+  }
+  inp.value = '';
+  // TODO: fetch('https://YOUR_FORMSPARK_OR_SUPABASE_ENDPOINT', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email: val}) })
+  console.log('registered:', val);
+  const t = document.getElementById('toast');
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const tgt = document.querySelector(a.getAttribute('href'));
+    if (tgt) { e.preventDefault(); tgt.scrollIntoView({ behavior: 'smooth' }); }
+  });
+});
+</script>
+</body>
+</html>
