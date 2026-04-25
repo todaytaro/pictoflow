@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PictoFlow — 画像生成</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Noto+Sans+JP:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root { --ink:#0a0a0f; --paper:#f5f3ee; --accent:#1a56ff; --mid:#6b6b78; --border:rgba(10,10,15,0.10); }
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:'Noto Sans JP',sans-serif; background:var(--paper); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; }
+nav { display:flex; align-items:center; justify-content:space-between; padding:1rem 2rem; border-bottom:1px solid var(--border); background:rgba(245,243,238,0.95); backdrop-filter:blur(12px); position:sticky; top:0; z-index:100; }
+.logo { font-family:'Syne',sans-serif; font-weight:800; font-size:1.3rem; color:var(--ink); text-decoration:none; letter-spacing:-0.03em; }
+.logo span { color:var(--accent); }
+.plan-badge { font-size:0.72rem; font-weight:500; padding:4px 10px; border-radius:100px; background:var(--accent); color:white; }
+.credit-count { font-size:0.82rem; color:var(--mid); }
+.nav-right { display:flex; align-items:center; gap:1rem; }
+.app-body { display:flex; flex:1; }
+.sidebar { width:300px; border-right:1px solid var(--border); padding:1.5rem; overflow-y:auto; background:white; flex-shrink:0; }
+.s-sec { margin-bottom:1.75rem; }
+.s-lbl { font-size:0.7rem; font-weight:500; color:var(--mid); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.75rem; }
+.og { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.ob { padding:0.55rem 0.5rem; border:1.5px solid var(--border); border-radius:10px; background:var(--paper); font-family:'Noto Sans JP',sans-serif; font-size:0.78rem; color:var(--mid); cursor:pointer; transition:all 0.15s; text-align:center; line-height:1.3; }
+.ob:hover { border-color:var(--accent); color:var(--ink); }
+.ob.on { background:var(--accent); border-color:var(--accent); color:white; font-weight:500; }
+.brand-input { width:100%; padding:0.6rem 0.85rem; border:1.5px solid var(--border); border-radius:10px; background:var(--paper); font-family:'Noto Sans JP',sans-serif; font-size:0.82rem; color:var(--ink); outline:none; transition:border-color 0.2s; resize:none; }
+.brand-input:focus { border-color:var(--accent); }
+.gen-btn { width:100%; padding:1rem; background:var(--ink); color:white; border:none; border-radius:12px; font-family:'Noto Sans JP',sans-serif; font-size:0.95rem; font-weight:500; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:0.5rem; }
+.gen-btn:hover:not(:disabled) { background:var(--accent); }
+.gen-btn:active:not(:disabled) { transform:scale(0.98); }
+.gen-btn:disabled { background:#bbb; cursor:not-allowed; }
+.sp { width:16px; height:16px; border:2px solid rgba(255,255,255,0.35); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; display:none; flex-shrink:0; }
+.gen-btn.loading .sp { display:block; }
+.main { flex:1; padding:2rem; overflow-y:auto; }
+.main-title { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:0.25rem; }
+.main-sub { font-size:0.85rem; color:var(--mid); margin-bottom:1.5rem; }
+.ig { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:1rem; }
+.ic { background:white; border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:transform 0.2s,box-shadow 0.2s; }
+.ic:hover { transform:translateY(-2px); box-shadow:0 12px 40px rgba(0,0,0,0.08); }
+.ic img { width:100%; display:block; aspect-ratio:1; object-fit:cover; }
+.ic-body { padding:0.85rem 1rem; display:flex; align-items:center; justify-content:space-between; }
+.ic-lbl { font-size:0.78rem; color:var(--mid); }
+.dl-btn { padding:5px 14px; border:1.5px solid var(--border); border-radius:100px; background:transparent; font-family:'Noto Sans JP',sans-serif; font-size:0.75rem; color:var(--mid); cursor:pointer; transition:all 0.15s; }
+.dl-btn:hover { background:var(--ink); color:white; border-color:var(--ink); }
+.ph { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:400px; gap:1rem; }
+.ph-icon { width:64px; height:64px; border-radius:16px; background:var(--paper); border:1.5px dashed var(--border); display:flex; align-items:center; justify-content:center; }
+.ph-title { font-size:1rem; font-weight:500; }
+.ph-sub { font-size:0.85rem; color:var(--mid); text-align:center; max-width:280px; line-height:1.6; }
+.lc { background:white; border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+.li { aspect-ratio:1; background:linear-gradient(90deg,#f0eeea 25%,#e8e6e1 50%,#f0eeea 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; }
+.lb { height:48px; background:linear-gradient(90deg,#f0eeea 25%,#e8e6e1 50%,#f0eeea 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; }
+.toast { position:fixed; bottom:2rem; left:50%; transform:translateX(-50%) translateY(120px); padding:0.85rem 1.5rem; border-radius:100px; font-size:0.88rem; font-weight:500; z-index:9000; transition:transform 0.4s cubic-bezier(0.34,1.56,0.64,1); white-space:nowrap; }
+.toast.err { background:#ff3d1a; color:white; }
+.toast.ok { background:var(--ink); color:white; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+@keyframes spin { to { transform:rotate(360deg); } }
+@keyframes shimmer { to { background-position:-200% 0; } }
+@media (max-width:768px) { .app-body { flex-direction:column; } .sidebar { width:100%; border-right:none; border-bottom:1px solid var(--border); } }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="logo">Picto<span>Flow</span></a>
+  <div class="nav-right">
+    <span class="credit-count">残り <strong id="cn">30</strong> 枚</span>
+    <span class="plan-badge">Free</span>
+  </div>
+</nav>
+
+<div class="app-body">
+  <aside class="sidebar">
+    <div class="s-sec">
+      <div class="s-lbl">ブランドキーワード（任意）</div>
+      <textarea class="brand-input" id="bk" rows="2" placeholder="例：ナチュラル、北欧風、白を基調とした"></textarea>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">用途</div>
+      <div class="og" id="use">
+        <button class="ob on" data-v="Instagram投稿用" onclick="sel(this,'use')">Instagram<br>投稿</button>
+        <button class="ob" data-v="Storyバナー用" onclick="sel(this,'use')">Story<br>バナー</button>
+        <button class="ob" data-v="楽天バナー用" onclick="sel(this,'use')">楽天<br>バナー</button>
+        <button class="ob" data-v="LPヒーロー画像用" onclick="sel(this,'use')">LP<br>ヒーロー</button>
+        <button class="ob" data-v="商品紹介用" onclick="sel(this,'use')">商品<br>紹介</button>
+        <button class="ob" data-v="広告バナー用" onclick="sel(this,'use')">広告<br>バナー</button>
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">雰囲気</div>
+      <div class="og" id="mood">
+        <button class="ob on" data-v="ナチュラルで温かみのある" onclick="sel(this,'mood')">ナチュラル</button>
+        <button class="ob" data-v="高級感のある洗練された" onclick="sel(this,'mood')">高級感</button>
+        <button class="ob" data-v="ポップで明るい" onclick="sel(this,'mood')">ポップ</button>
+        <button class="ob" data-v="ミニマルでスタイリッシュな" onclick="sel(this,'mood')">ミニマル</button>
+        <button class="ob" data-v="清潔感のある白を基調とした" onclick="sel(this,'mood')">清潔感</button>
+        <button class="ob" data-v="季節感のある" onclick="sel(this,'mood')">季節感</button>
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">カラートーン</div>
+      <div class="og" id="color">
+        <button class="ob on" data-v="ホワイト・ベージュトーンの" onclick="sel(this,'color')">ホワイト<br>ベージュ</button>
+        <button class="ob" data-v="ダーク・モノトーンの" onclick="sel(this,'color')">ダーク<br>モノ</button>
+        <button class="ob" data-v="パステルカラーの" onclick="sel(this,'color')">パステル</button>
+        <button class="ob" data-v="ビビッドカラーの" onclick="sel(this,'color')">ビビッド</button>
+      </div>
+    </div>
+    <div class="s-sec">
+      <div class="s-lbl">生成枚数</div>
+      <div class="og" id="cnt">
+        <button class="ob on" data-v="2" onclick="sel(this,'cnt')">2枚</button>
+        <button class="ob" data-v="4" onclick="sel(this,'cnt')">4枚</button>
+      </div>
+    </div>
+    <button class="gen-btn" id="gb" onclick="gen()">
+      <div class="sp"></div>
+      <span>✦ 画像を生成する</span>
+    </button>
+  </aside>
+
+  <main class="main">
+    <div class="main-title">生成結果</div>
+    <div class="main-sub" id="ms">用途・雰囲気を選んでボタンを押すと画像が生成されます</div>
+    <div id="out">
+      <div class="ph">
+        <div class="ph-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="3" width="18" height="18" rx="4" stroke="#aaa" stroke-width="1.5"/>
+            <circle cx="8.5" cy="8.5" r="1.5" fill="#aaa"/>
+            <path d="M3 16l5-5 4 4 3-3 6 6" stroke="#aaa" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="ph-title">まだ画像がありません</div>
+        <div class="ph-sub">左のパネルで設定を選んで「画像を生成する」を押してください</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let credits = 30;
+function sel(b, id) { document.querySelectorAll(`#${id} .ob`).forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
+function gv(id) { return document.querySelector(`#${id} .ob.on`)?.dataset.v||''; }
+function prompt() {
+  const b = document.getElementById('bk').value.trim();
+  return `${gv('mood')}雰囲気の${b?b+'、':''}${gv('color')}商品写真、${gv('use')}、プロフェッショナルな商品撮影、スタジオ照明、高品質、EC向け商品画像、クリーンな背景`;
+}
+async function gen() {
+  if(credits<=0){toast('クレジットがなくなりました','err');return;}
+  const count=parseInt(gv('cnt'));
+  const btn=document.getElementById('gb');
+  btn.disabled=true; btn.classList.add('loading');
+  document.getElementById('ms').textContent='生成中です。30秒ほどお待ちください…';
+  document.getElementById('out').innerHTML=`<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
+  const urls=[];
+  try {
+    for(let i=0;i<count;i++){
+      const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt()})});
+      const d=await r.json();
+      if(d.url) urls.push(d.url);
+      else throw new Error(d.error||'unknown');
+    }
+    credits-=count;
+    document.getElementById('cn').textContent=credits;
+    document.getElementById('ms').textContent=`${count}枚生成しました`;
+    const use=gv('use');
+    document.getElementById('out').innerHTML=`<div class="ig">${urls.map((u,i)=>`
+      <div class="ic">
+        <img src="${u}" alt="生成画像${i+1}" loading="lazy">
+        <div class="ic-body">
+          <span class="ic-lbl">${use} #${i+1}</span>
+          <button class="dl-btn" onclick="dl('${u}',${Date.now()},${i+1})">DL</button>
+        </div>
+      </div>`).join('')}</div>`;
+    toast(`${count}枚生成しました！`,'ok');
+  } catch(e) {
+    document.getElementById('ms').textContent='生成に失敗しました';
+    document.getElementById('out').innerHTML='<div class="ph"><div class="ph-title">生成に失敗しました</div><div class="ph-sub">もう一度「画像を生成する」を押してください</div></div>';
+    toast('生成に失敗しました。もう一度お試しください。','err');
+  } finally { btn.disabled=false; btn.classList.remove('loading'); }
+}
+async function dl(url,ts,i) {
+  try { const r=await fetch(url); const b=await r.blob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`pictoflow_${ts}_${i}.webp`; a.click(); }
+  catch { window.open(url,'_blank'); }
+}
+function toast(msg,type) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),4000);
+}
+</script>
+</body>
+</html>
