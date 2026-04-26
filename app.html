@@ -352,32 +352,19 @@ function handleFile(file) {
   if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
     toast('JPG、PNG、WebP形式のみ対応しています', 'err'); return;
   }
-  if (file.size > 20 * 1024 * 1024) {
-    toast('ファイルサイズは20MB以下にしてください', 'err'); return;
+  if (file.size > 10 * 1024 * 1024) {
+    toast('ファイルサイズは10MB以下にしてください', 'err'); return;
   }
+  uploadedFile = file;
   const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => {
-      const MAX = 1500;
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(blob => {
-        uploadedFile = new File([blob], file.name, { type: 'image/jpeg' });
-        document.getElementById('previewImg').src = e.target.result;
-        document.getElementById('previewName').textContent = file.name.length > 20 ? file.name.slice(0,20) + '…' : file.name;
-        uploadZone.style.display = 'none';
-        document.getElementById('uploadedPreview').classList.add('show');
-        checkUploadReady();
-      }, 'image/jpeg', 0.85);
-    };
-    img.src = e.target.result;
-  };
+  reader.onload = e => { document.getElementById('previewImg').src = e.target.result; };
   reader.readAsDataURL(file);
+  document.getElementById('previewName').textContent = file.name.length > 20 ? file.name.slice(0,20) + '…' : file.name;
+  uploadZone.style.display = 'none';
+  document.getElementById('uploadedPreview').classList.add('show');
+  checkUploadReady();
 }
+
 function resetUpload() {
   uploadedFile = null;
   document.getElementById('fileInput').value = '';
@@ -481,11 +468,11 @@ function buildUploadPrompts(category, target, count) {
   const tgt = tgtMap[target] || 'general consumers';
 
   const scenes = [
-    { label:'スタジオ風',    prompt:`Professional studio photography background, clean white marble surface, soft diffused lighting, minimal elegant backdrop, for ${cat}, targeted at ${tgt}, no products visible` },
-    { label:'ライフスタイル', prompt:`Lifestyle home setting background, warm ambient lighting, bokeh, natural tones, for ${cat}, appealing to ${tgt}, no products visible` },
-    { label:'ミニマル',      prompt:`Minimalist soft gradient background, centered clean composition, premium brand aesthetic, for ${cat}, for ${tgt}, no products visible` },
-    { label:'自然・屋外',    prompt:`Outdoor natural background, soft natural light, fresh organic elements, for ${cat}, for ${tgt}, no products visible` },
-    { label:'テクスチャー',  prompt:`Textured concrete or linen background, artistic high contrast composition, for ${cat}, for ${tgt}, no products visible` },
+    { label:'スタジオ風',    prompt:`Clean white seamless paper background, soft even lighting, no props no equipment no people, pure product photography backdrop, ${cat}` },
+    { label:'ライフスタイル', prompt:`Cozy home interior background, wooden table surface, soft natural window light, blurred background bokeh, no people, lifestyle backdrop for ${cat}, appealing to ${tgt}` },
+    { label:'ミニマル',      prompt:`Pure light gray gradient background, smooth seamless surface, even soft lighting, no shadows no props, minimalist clean backdrop` },
+    { label:'自然・屋外',    prompt:`Soft outdoor natural background, green nature blurred bokeh, gentle sunlight, no people no props, fresh organic backdrop for ${cat}` },
+    { label:'テクスチャー',  prompt:`Rustic wooden table surface background, soft top-down angle, warm ambient light, no people no products, textured natural material backdrop` },
   ];
   return scenes.slice(0, count);
 }
