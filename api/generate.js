@@ -68,6 +68,14 @@ export default async function handler(req, res) {
     console.log('Generate create status:', response.status, 'id:', data.id);
 
     if (!response.ok) {
+      // Pass 429 through with retry_after so the client can wait + retry.
+      if (response.status === 429) {
+        return res.status(429).json({
+          error: 'Rate limited',
+          retry_after: data?.retry_after || 10,
+          detail: data,
+        });
+      }
       return res.status(response.status === 422 ? 422 : 502).json({
         error: 'Replicate API error',
         status: response.status,

@@ -157,7 +157,8 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
       <div class="s-sec">
         <div class="s-lbl">生成枚数</div>
         <div class="og" id="cnt">
-          <button class="ob on" data-v="2" onclick="sel(this,'cnt')">2枚</button>
+          <button class="ob on" data-v="1" onclick="sel(this,'cnt')">1枚</button>
+          <button class="ob" data-v="2" onclick="sel(this,'cnt')">2枚</button>
           <button class="ob" data-v="4" onclick="sel(this,'cnt')">4枚</button>
         </div>
       </div>
@@ -359,8 +360,16 @@ async function genPrompt() {
   const urls = [];
   try {
     for (let i = 0; i < count; i++) {
-      const r = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: buildPrompt() }) });
-      let d = await r.json();
+      // Create with up-to-3 retries on 429 (Replicate burst limit).
+      let r, d;
+      for (let createAttempt = 0; createAttempt < 3; createAttempt++) {
+        r = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: buildPrompt() }) });
+        d = await r.json();
+        if (r.status !== 429) break;
+        const wait = ((d.retry_after || 10) + 1) * 1000;
+        document.getElementById('ms').textContent = `生成 ${i+1}/${count}: 連続生成の制限のため ${Math.ceil(wait/1000)} 秒待機中…`;
+        await new Promise(res => setTimeout(res, wait));
+      }
       if (r.status === 202 && d.predictionId) {
         let attempts = 0;
         while (attempts < 60) {
