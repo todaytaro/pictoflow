@@ -1,5 +1,13 @@
 export const maxDuration = 60;
 
+export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: '10mb',
+    },
+  },
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -24,7 +32,6 @@ export default async function handler(req, res) {
         return res.status(200).json({ url: pollData.output[0] });
       }
       if (pollData.status === 'failed' || pollData.status === 'canceled') {
-        console.log('Poll error:', JSON.stringify(pollData.error));
         return res.status(500).json({ error: 'Generation failed', detail: pollData.error });
       }
       return res.status(202).json({ status: pollData.status, predictionId });
@@ -45,27 +52,35 @@ export default async function handler(req, res) {
 }
 
 async function generateWithBria(token, prompt, imageBase64, res) {
-  // base64 → Replicateのファイルアップロードに変換
-  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  // data:image/jpeg;base64,XXX... からMIMEとデータを分離
+  const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
+  if (!matches) {
+    return res.status(400).json({ error: 'Invalid image format' });
+  }
+  const mimeType = matches[1];
+  const base64Data = matches[2];
   const imageBuffer = Buffer.from(base64Data, 'base64');
+
+  console.log('Image buffer size:', imageBuffer.length, 'MIME:', mimeType);
 
   // Replicate Files APIにアップロード
   const uploadRes = await fetch('https://api.replicate.com/v1/files', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'image/jpeg',
+      'Content-Type': mimeType,
+      'Content-Length': String(imageBuffer.length),
     },
     body: imageBuffer,
   });
 
+  const uploadData = await uploadRes.json();
+  console.log('Upload status:', uploadRes.status, JSON.stringify(uploadData).slice(0, 200));
+
   if (!uploadRes.ok) {
-    const err = await uploadRes.json().catch(() => ({}));
-    console.log('Upload error:', JSON.stringify(err));
-    return res.status(500).json({ error: 'Image upload failed', detail: err });
+    return res.status(500).json({ error: 'Image upload failed', detail: uploadData });
   }
 
-  const uploadData = await uploadRes.json();
   const imageUrl = uploadData.urls?.get || uploadData.url;
   console.log('Uploaded image URL:', imageUrl);
 
@@ -89,8 +104,7 @@ async function generateWithBria(token, prompt, imageBase64, res) {
   );
 
   const data = await response.json();
-  console.log('Bria status:', response.status);
-  console.log('Bria prediction id:', data.id);
+  console.log('Bria status:', response.status, 'id:', data.id);
 
   if (!response.ok) {
     return res.status(500).json({ error: 'Bria API error', detail: data });
