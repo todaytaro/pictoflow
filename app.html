@@ -16,6 +16,12 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
 .plan-badge { font-size:0.72rem; font-weight:500; padding:4px 10px; border-radius:100px; background:var(--accent); color:white; }
 .credit-count { font-size:0.82rem; color:var(--mid); }
 .nav-right { display:flex; align-items:center; gap:1rem; }
+
+/* モード切替タブ */
+.mode-tabs { display:flex; gap:4px; padding:4px; background:var(--paper); border:1px solid var(--border); border-radius:12px; }
+.mode-tab { padding:6px 16px; border-radius:9px; font-size:0.78rem; font-family:'Noto Sans JP',sans-serif; font-weight:500; cursor:pointer; border:none; background:transparent; color:var(--mid); transition:all 0.15s; }
+.mode-tab.on { background:white; color:var(--ink); box-shadow:0 1px 4px rgba(0,0,0,0.08); }
+
 .app-body { display:flex; flex:1; }
 .sidebar { width:300px; border-right:1px solid var(--border); padding:1.5rem; overflow-y:auto; background:white; flex-shrink:0; }
 .s-sec { margin-bottom:1.75rem; }
@@ -32,6 +38,26 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
 .gen-btn:disabled { background:#bbb; cursor:not-allowed; }
 .sp { width:16px; height:16px; border:2px solid rgba(255,255,255,0.35); border-top-color:white; border-radius:50%; animation:spin 0.8s linear infinite; display:none; flex-shrink:0; }
 .gen-btn.loading .sp { display:block; }
+
+/* アップロードゾーン */
+.upload-zone { border:1.5px dashed var(--border); border-radius:12px; padding:1.5rem 1rem; text-align:center; cursor:pointer; transition:all 0.2s; background:var(--paper); }
+.upload-zone:hover, .upload-zone.drag-over { border-color:var(--accent); background:#f0f4ff; }
+.upload-zone input { display:none; }
+.upload-icon { font-size:28px; margin-bottom:8px; }
+.upload-title { font-size:0.85rem; font-weight:500; margin-bottom:4px; }
+.upload-sub { font-size:0.75rem; color:var(--mid); }
+
+/* アップロード済みプレビュー */
+.uploaded-preview { display:none; background:var(--paper); border:1px solid var(--border); border-radius:12px; padding:10px; }
+.uploaded-preview.show { display:block; }
+.uploaded-preview img { width:100%; border-radius:8px; display:block; margin-bottom:8px; }
+.uploaded-meta { font-size:0.75rem; color:var(--mid); display:flex; justify-content:space-between; align-items:center; }
+.reset-btn { font-size:0.72rem; color:var(--accent); background:none; border:none; cursor:pointer; font-family:'Noto Sans JP',sans-serif; padding:0; }
+
+/* 商品カテゴリ・ターゲット（アップロードモード用） */
+.field-select { width:100%; padding:0.55rem 0.75rem; border:1.5px solid var(--border); border-radius:10px; background:var(--paper); font-family:'Noto Sans JP',sans-serif; font-size:0.82rem; color:var(--ink); outline:none; transition:border-color 0.2s; appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b6b78' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 10px center; }
+.field-select:focus { border-color:var(--accent); }
+
 .main { flex:1; padding:2rem; overflow-y:auto; }
 .main-title { font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; letter-spacing:-0.02em; margin-bottom:0.25rem; }
 .main-sub { font-size:0.85rem; color:var(--mid); margin-bottom:1.5rem; }
@@ -54,6 +80,14 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
 .toast.err { background:#ff3d1a; color:white; }
 .toast.ok { background:var(--ink); color:white; }
 .toast.show { transform:translateX(-50%) translateY(0); }
+
+/* プログレス */
+.progress-wrap { margin-bottom:1rem; display:none; }
+.progress-wrap.show { display:block; }
+.progress-bar-bg { background:#e8e6e1; border-radius:4px; height:3px; overflow:hidden; margin-bottom:6px; }
+.progress-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.4s ease; width:0%; }
+.progress-label { font-size:0.72rem; color:var(--mid); }
+
 @keyframes spin { to { transform:rotate(360deg); } }
 @keyframes shimmer { to { background-position:-200% 0; } }
 @media (max-width:768px) { .app-body { flex-direction:column; } .sidebar { width:100%; border-right:none; border-bottom:1px solid var(--border); } }
@@ -71,52 +105,137 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
 
 <div class="app-body">
   <aside class="sidebar">
+
+    <!-- モード切替 -->
     <div class="s-sec">
-      <div class="s-lbl">ブランドキーワード（任意）</div>
-      <textarea class="brand-input" id="bk" rows="2" placeholder="例：ナチュラル、北欧風、白を基調とした"></textarea>
-    </div>
-    <div class="s-sec">
-      <div class="s-lbl">用途</div>
-      <div class="og" id="use">
-        <button class="ob on" data-v="Instagram投稿用" onclick="sel(this,'use')">Instagram<br>投稿</button>
-        <button class="ob" data-v="Storyバナー用" onclick="sel(this,'use')">Story<br>バナー</button>
-        <button class="ob" data-v="楽天バナー用" onclick="sel(this,'use')">楽天<br>バナー</button>
-        <button class="ob" data-v="LPヒーロー画像用" onclick="sel(this,'use')">LP<br>ヒーロー</button>
-        <button class="ob" data-v="商品紹介用" onclick="sel(this,'use')">商品<br>紹介</button>
-        <button class="ob" data-v="広告バナー用" onclick="sel(this,'use')">広告<br>バナー</button>
+      <div class="mode-tabs">
+        <button class="mode-tab on" id="tab-prompt" onclick="switchMode('prompt')">プロンプト生成</button>
+        <button class="mode-tab" id="tab-upload" onclick="switchMode('upload')">商品写真で生成</button>
       </div>
     </div>
-    <div class="s-sec">
-      <div class="s-lbl">雰囲気</div>
-      <div class="og" id="mood">
-        <button class="ob on" data-v="ナチュラルで温かみのある" onclick="sel(this,'mood')">ナチュラル</button>
-        <button class="ob" data-v="高級感のある洗練された" onclick="sel(this,'mood')">高級感</button>
-        <button class="ob" data-v="ポップで明るい" onclick="sel(this,'mood')">ポップ</button>
-        <button class="ob" data-v="ミニマルでスタイリッシュな" onclick="sel(this,'mood')">ミニマル</button>
-        <button class="ob" data-v="清潔感のある白を基調とした" onclick="sel(this,'mood')">清潔感</button>
-        <button class="ob" data-v="季節感のある" onclick="sel(this,'mood')">季節感</button>
+
+    <!-- ===== プロンプトモード ===== -->
+    <div id="mode-prompt">
+      <div class="s-sec">
+        <div class="s-lbl">ブランドキーワード（任意）</div>
+        <textarea class="brand-input" id="bk" rows="2" placeholder="例：ナチュラル、北欧風、白を基調とした"></textarea>
       </div>
-    </div>
-    <div class="s-sec">
-      <div class="s-lbl">カラートーン</div>
-      <div class="og" id="color">
-        <button class="ob on" data-v="ホワイト・ベージュトーンの" onclick="sel(this,'color')">ホワイト<br>ベージュ</button>
-        <button class="ob" data-v="ダーク・モノトーンの" onclick="sel(this,'color')">ダーク<br>モノ</button>
-        <button class="ob" data-v="パステルカラーの" onclick="sel(this,'color')">パステル</button>
-        <button class="ob" data-v="ビビッドカラーの" onclick="sel(this,'color')">ビビッド</button>
+      <div class="s-sec">
+        <div class="s-lbl">用途</div>
+        <div class="og" id="use">
+          <button class="ob on" data-v="Instagram投稿用" onclick="sel(this,'use')">Instagram<br>投稿</button>
+          <button class="ob" data-v="Storyバナー用" onclick="sel(this,'use')">Story<br>バナー</button>
+          <button class="ob" data-v="楽天バナー用" onclick="sel(this,'use')">楽天<br>バナー</button>
+          <button class="ob" data-v="LPヒーロー画像用" onclick="sel(this,'use')">LP<br>ヒーロー</button>
+          <button class="ob" data-v="商品紹介用" onclick="sel(this,'use')">商品<br>紹介</button>
+          <button class="ob" data-v="広告バナー用" onclick="sel(this,'use')">広告<br>バナー</button>
+        </div>
       </div>
-    </div>
-    <div class="s-sec">
-      <div class="s-lbl">生成枚数</div>
-      <div class="og" id="cnt">
-        <button class="ob on" data-v="2" onclick="sel(this,'cnt')">2枚</button>
-        <button class="ob" data-v="4" onclick="sel(this,'cnt')">4枚</button>
+      <div class="s-sec">
+        <div class="s-lbl">雰囲気</div>
+        <div class="og" id="mood">
+          <button class="ob on" data-v="ナチュラルで温かみのある" onclick="sel(this,'mood')">ナチュラル</button>
+          <button class="ob" data-v="高級感のある洗練された" onclick="sel(this,'mood')">高級感</button>
+          <button class="ob" data-v="ポップで明るい" onclick="sel(this,'mood')">ポップ</button>
+          <button class="ob" data-v="ミニマルでスタイリッシュな" onclick="sel(this,'mood')">ミニマル</button>
+          <button class="ob" data-v="清潔感のある白を基調とした" onclick="sel(this,'mood')">清潔感</button>
+          <button class="ob" data-v="季節感のある" onclick="sel(this,'mood')">季節感</button>
+        </div>
       </div>
+      <div class="s-sec">
+        <div class="s-lbl">カラートーン</div>
+        <div class="og" id="color">
+          <button class="ob on" data-v="ホワイト・ベージュトーンの" onclick="sel(this,'color')">ホワイト<br>ベージュ</button>
+          <button class="ob" data-v="ダーク・モノトーンの" onclick="sel(this,'color')">ダーク<br>モノ</button>
+          <button class="ob" data-v="パステルカラーの" onclick="sel(this,'color')">パステル</button>
+          <button class="ob" data-v="ビビッドカラーの" onclick="sel(this,'color')">ビビッド</button>
+        </div>
+      </div>
+      <div class="s-sec">
+        <div class="s-lbl">生成枚数</div>
+        <div class="og" id="cnt">
+          <button class="ob on" data-v="2" onclick="sel(this,'cnt')">2枚</button>
+          <button class="ob" data-v="4" onclick="sel(this,'cnt')">4枚</button>
+        </div>
+      </div>
+      <button class="gen-btn" id="gb-prompt" onclick="genPrompt()">
+        <div class="sp"></div>
+        <span>✦ 画像を生成する</span>
+      </button>
     </div>
-    <button class="gen-btn" id="gb" onclick="gen()">
-      <div class="sp"></div>
-      <span>✦ 画像を生成する</span>
-    </button>
+
+    <!-- ===== アップロードモード ===== -->
+    <div id="mode-upload" style="display:none;">
+
+      <div class="s-sec">
+        <div class="s-lbl">商品写真</div>
+        <!-- アップロードゾーン -->
+        <div class="upload-zone" id="uploadZone">
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp">
+          <div class="upload-icon">📦</div>
+          <div class="upload-title">写真をアップロード</div>
+          <div class="upload-sub">クリックまたはドラッグ＆ドロップ<br>JPG / PNG / WebP</div>
+        </div>
+        <!-- プレビュー -->
+        <div class="uploaded-preview" id="uploadedPreview">
+          <img id="previewImg" src="" alt="プレビュー">
+          <div class="uploaded-meta">
+            <span id="previewName">—</span>
+            <button class="reset-btn" onclick="resetUpload()">別の画像を使う</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="s-sec">
+        <div class="s-lbl">商品カテゴリ</div>
+        <select class="field-select" id="up-category">
+          <option value="">選択してください</option>
+          <option value="food">食品・飲料</option>
+          <option value="cosmetics">化粧品・美容</option>
+          <option value="fashion">アパレル・ファッション</option>
+          <option value="electronics">家電・ガジェット</option>
+          <option value="interior">インテリア・雑貨</option>
+          <option value="sports">スポーツ・アウトドア</option>
+          <option value="baby">ベビー・キッズ</option>
+          <option value="other">その他</option>
+        </select>
+      </div>
+
+      <div class="s-sec">
+        <div class="s-lbl">ターゲット顧客</div>
+        <select class="field-select" id="up-target">
+          <option value="">選択してください</option>
+          <option value="women20s">20〜30代女性</option>
+          <option value="women40s">40〜50代女性</option>
+          <option value="men20s">20〜30代男性</option>
+          <option value="men40s">40〜50代男性</option>
+          <option value="family">ファミリー層</option>
+          <option value="senior">シニア層</option>
+          <option value="business">ビジネスパーソン</option>
+        </select>
+      </div>
+
+      <div class="s-sec">
+        <div class="s-lbl">背景パターン数</div>
+        <div class="og" id="up-cnt">
+          <button class="ob" data-v="1" onclick="sel(this,'up-cnt')">1枚</button>
+          <button class="ob on" data-v="3" onclick="sel(this,'up-cnt')">3枚</button>
+          <button class="ob" data-v="5" onclick="sel(this,'up-cnt')">5枚</button>
+        </div>
+      </div>
+
+      <!-- プログレスバー -->
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar-bg"><div class="progress-bar" id="progressBar"></div></div>
+        <div class="progress-label" id="progressLabel">準備中...</div>
+      </div>
+
+      <button class="gen-btn" id="gb-upload" onclick="genUpload()" disabled>
+        <div class="sp"></div>
+        <span>✦ 背景を生成する</span>
+      </button>
+    </div>
+
   </aside>
 
   <main class="main">
@@ -142,32 +261,63 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
 
 <script>
 let credits = 30;
-function sel(b, id) { document.querySelectorAll(`#${id} .ob`).forEach(x=>x.classList.remove('on')); b.classList.add('on'); }
-function gv(id) { return document.querySelector(`#${id} .ob.on`)?.dataset.v||''; }
-function prompt() {
-  const b = document.getElementById('bk').value.trim();
-  return `${gv('mood')}雰囲気の${b?b+'、':''}${gv('color')}商品写真、${gv('use')}、プロフェッショナルな商品撮影、スタジオ照明、高品質、EC向け商品画像、クリーンな背景`;
+let uploadedFile = null;
+let currentMode = 'prompt';
+
+// ===== モード切替 =====
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-prompt').style.display = mode === 'prompt' ? '' : 'none';
+  document.getElementById('mode-upload').style.display = mode === 'upload' ? '' : 'none';
+  document.getElementById('tab-prompt').classList.toggle('on', mode === 'prompt');
+  document.getElementById('tab-upload').classList.toggle('on', mode === 'upload');
+  document.getElementById('ms').textContent = mode === 'prompt'
+    ? '用途・雰囲気を選んでボタンを押すと画像が生成されます'
+    : '商品写真をアップロードして背景を生成します';
 }
-async function gen() {
-  if(credits<=0){toast('クレジットがなくなりました','err');return;}
-  const count=parseInt(gv('cnt'));
-  const btn=document.getElementById('gb');
-  btn.disabled=true; btn.classList.add('loading');
-  document.getElementById('ms').textContent='生成中です。30秒ほどお待ちください…';
-  document.getElementById('out').innerHTML=`<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
-  const urls=[];
+
+// ===== 共通ユーティリティ =====
+function sel(b, id) {
+  document.querySelectorAll(`#${id} .ob`).forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+}
+function gv(id) { return document.querySelector(`#${id} .ob.on`)?.dataset.v || ''; }
+function toast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast ${type} show`;
+  setTimeout(() => t.classList.remove('show'), 4000);
+}
+function setProgress(pct, label) {
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressLabel').textContent = label;
+}
+
+// ===== プロンプトモード =====
+function buildPrompt() {
+  const b = document.getElementById('bk').value.trim();
+  return `${gv('mood')}雰囲気の${b ? b + '、' : ''}${gv('color')}商品写真、${gv('use')}、プロフェッショナルな商品撮影、スタジオ照明、高品質、EC向け商品画像、クリーンな背景`;
+}
+
+async function genPrompt() {
+  if (credits <= 0) { toast('クレジットがなくなりました', 'err'); return; }
+  const count = parseInt(gv('cnt'));
+  const btn = document.getElementById('gb-prompt');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('ms').textContent = '生成中です。30秒ほどお待ちください…';
+  document.getElementById('out').innerHTML = `<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
+  const urls = [];
   try {
-    for(let i=0;i<count;i++){
-      const r=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt:prompt()})});
-      const d=await r.json();
-      if(d.url) urls.push(d.url);
-      else throw new Error(d.error||'unknown');
+    for (let i = 0; i < count; i++) {
+      const r = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: buildPrompt() }) });
+      const d = await r.json();
+      if (d.url) urls.push(d.url);
+      else throw new Error(d.error || 'unknown');
     }
-    credits-=count;
-    document.getElementById('cn').textContent=credits;
-    document.getElementById('ms').textContent=`${count}枚生成しました`;
-    const use=gv('use');
-    document.getElementById('out').innerHTML=`<div class="ig">${urls.map((u,i)=>`
+    credits -= count;
+    document.getElementById('cn').textContent = credits;
+    document.getElementById('ms').textContent = `${count}枚生成しました`;
+    const use = gv('use');
+    document.getElementById('out').innerHTML = `<div class="ig">${urls.map((u, i) => `
       <div class="ic">
         <img src="${u}" alt="生成画像${i+1}" loading="lazy">
         <div class="ic-body">
@@ -175,21 +325,202 @@ async function gen() {
           <button class="dl-btn" onclick="dl('${u}',${Date.now()},${i+1})">DL</button>
         </div>
       </div>`).join('')}</div>`;
-    toast(`${count}枚生成しました！`,'ok');
+    toast(`${count}枚生成しました！`, 'ok');
   } catch(e) {
-    document.getElementById('ms').textContent='生成に失敗しました';
-    document.getElementById('out').innerHTML='<div class="ph"><div class="ph-title">生成に失敗しました</div><div class="ph-sub">もう一度「画像を生成する」を押してください</div></div>';
-    toast('生成に失敗しました。もう一度お試しください。','err');
-  } finally { btn.disabled=false; btn.classList.remove('loading'); }
+    document.getElementById('ms').textContent = '生成に失敗しました';
+    document.getElementById('out').innerHTML = '<div class="ph"><div class="ph-title">生成に失敗しました</div><div class="ph-sub">もう一度「画像を生成する」を押してください</div></div>';
+    toast('生成に失敗しました。もう一度お試しください。', 'err');
+  } finally {
+    btn.disabled = false; btn.classList.remove('loading');
+  }
 }
-async function dl(url,ts,i) {
-  try { const r=await fetch(url); const b=await r.blob(); const a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=`pictoflow_${ts}_${i}.webp`; a.click(); }
-  catch { window.open(url,'_blank'); }
+
+// ===== アップロードモード =====
+
+// ドラッグ＆ドロップ
+const uploadZone = document.getElementById('uploadZone');
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+uploadZone.addEventListener('click', () => document.getElementById('fileInput').click());
+document.getElementById('fileInput').addEventListener('change', e => { if (e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file) {
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+    toast('JPG、PNG、WebP形式のみ対応しています', 'err'); return;
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    toast('ファイルサイズは10MB以下にしてください', 'err'); return;
+  }
+  uploadedFile = file;
+  const reader = new FileReader();
+  reader.onload = e => { document.getElementById('previewImg').src = e.target.result; };
+  reader.readAsDataURL(file);
+  document.getElementById('previewName').textContent = file.name.length > 20 ? file.name.slice(0,20) + '…' : file.name;
+  uploadZone.style.display = 'none';
+  document.getElementById('uploadedPreview').classList.add('show');
+  checkUploadReady();
 }
-function toast(msg,type) {
-  const t=document.getElementById('toast');
-  t.textContent=msg; t.className=`toast ${type} show`;
-  setTimeout(()=>t.classList.remove('show'),4000);
+
+function resetUpload() {
+  uploadedFile = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('previewImg').src = '';
+  uploadZone.style.display = '';
+  document.getElementById('uploadedPreview').classList.remove('show');
+  document.getElementById('gb-upload').disabled = true;
+}
+
+function checkUploadReady() {
+  const cat = document.getElementById('up-category').value;
+  const tgt = document.getElementById('up-target').value;
+  document.getElementById('gb-upload').disabled = !(uploadedFile && cat && tgt);
+}
+document.getElementById('up-category').addEventListener('change', checkUploadReady);
+document.getElementById('up-target').addEventListener('change', checkUploadReady);
+
+async function genUpload() {
+  if (credits <= 0) { toast('クレジットがなくなりました', 'err'); return; }
+  if (!uploadedFile) { toast('商品写真をアップロードしてください', 'err'); return; }
+
+  const count = parseInt(gv('up-cnt'));
+  const btn = document.getElementById('gb-upload');
+  const progressWrap = document.getElementById('progressWrap');
+
+  btn.disabled = true; btn.classList.add('loading');
+  progressWrap.classList.add('show');
+  setProgress(5, '背景を除去しています...');
+  document.getElementById('ms').textContent = '処理中です。しばらくお待ちください…';
+  document.getElementById('out').innerHTML = `<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
+
+  try {
+    // Step1: Remove.bg で背景除去
+    const formData = new FormData();
+    formData.append('image_file', uploadedFile);
+    const rbRes = await fetch('/api/remove-bg', { method:'POST', body: formData });
+    if (!rbRes.ok) {
+      const e = await rbRes.json().catch(() => ({}));
+      throw new Error(e.error || '背景除去に失敗しました');
+    }
+    const { imageBase64 } = await rbRes.json();
+    setProgress(25, `背景パターンを生成しています (0/${count})...`);
+
+    // Step2: 背景生成 × N枚 → Canvas合成
+    const category = document.getElementById('up-category').value;
+    const target = document.getElementById('up-target').value;
+    const prompts = buildUploadPrompts(category, target, count);
+    const results = [];
+
+    for (let i = 0; i < prompts.length; i++) {
+      const pct = 25 + ((i + 1) / count) * 70;
+      setProgress(pct - 10, `背景パターンを生成しています (${i}/${count})...`);
+
+      const r = await fetch('/api/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: prompts[i].prompt })
+      });
+      const d = await r.json();
+      if (!d.url) throw new Error(d.error || '画像生成に失敗しました');
+
+      // Canvas で商品PNG + 背景を合成
+      const compositeUrl = await compositeImages(d.url, imageBase64);
+      results.push({ url: compositeUrl, label: prompts[i].label });
+
+      setProgress(pct, `背景パターンを生成しています (${i+1}/${count})...`);
+    }
+
+    credits -= count;
+    document.getElementById('cn').textContent = credits;
+    setProgress(100, `${count}枚完成！`);
+    document.getElementById('ms').textContent = `${count}枚の背景を生成しました`;
+
+    document.getElementById('out').innerHTML = `<div class="ig">${results.map((r, i) => `
+      <div class="ic">
+        <img src="${r.url}" alt="生成画像${i+1}" loading="lazy">
+        <div class="ic-body">
+          <span class="ic-lbl">${r.label}</span>
+          <button class="dl-btn" onclick="dlDataUrl('${r.url}',${Date.now()},${i+1})">DL</button>
+        </div>
+      </div>`).join('')}</div>`;
+
+    toast(`${count}枚生成しました！`, 'ok');
+    setTimeout(() => progressWrap.classList.remove('show'), 2000);
+
+  } catch(e) {
+    document.getElementById('ms').textContent = '生成に失敗しました';
+    document.getElementById('out').innerHTML = '<div class="ph"><div class="ph-title">生成に失敗しました</div><div class="ph-sub">もう一度「背景を生成する」を押してください</div></div>';
+    toast(e.message || '生成に失敗しました', 'err');
+    progressWrap.classList.remove('show');
+  } finally {
+    btn.disabled = false; btn.classList.remove('loading');
+    checkUploadReady();
+  }
+}
+
+function buildUploadPrompts(category, target, count) {
+  const catMap = { food:'food product', cosmetics:'beauty cosmetics product', fashion:'fashion apparel item', electronics:'electronic gadget', interior:'home decor item', sports:'sports equipment', baby:'baby product', other:'retail product' };
+  const tgtMap = { women20s:'young women', women40s:'mature women', men20s:'young men', men40s:'mature men', family:'family households', senior:'senior adults', business:'business professionals' };
+  const cat = catMap[category] || 'retail product';
+  const tgt = tgtMap[target] || 'general consumers';
+
+  const scenes = [
+    { label:'スタジオ風',    prompt:`Professional studio photography background, clean white marble surface, soft diffused lighting, minimal elegant backdrop, for ${cat}, targeted at ${tgt}, no products visible` },
+    { label:'ライフスタイル', prompt:`Lifestyle home setting background, warm ambient lighting, bokeh, natural tones, for ${cat}, appealing to ${tgt}, no products visible` },
+    { label:'ミニマル',      prompt:`Minimalist soft gradient background, centered clean composition, premium brand aesthetic, for ${cat}, for ${tgt}, no products visible` },
+    { label:'自然・屋外',    prompt:`Outdoor natural background, soft natural light, fresh organic elements, for ${cat}, for ${tgt}, no products visible` },
+    { label:'テクスチャー',  prompt:`Textured concrete or linen background, artistic high contrast composition, for ${cat}, for ${tgt}, no products visible` },
+  ];
+  return scenes.slice(0, count);
+}
+
+// Canvas合成: 背景URL + 商品base64PNG → data URL
+async function compositeImages(bgUrl, productBase64) {
+  const SIZE = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE; canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+
+  const bgImg = await loadImage(bgUrl);
+  ctx.drawImage(bgImg, 0, 0, SIZE, SIZE);
+
+  const prodImg = await loadImage(productBase64);
+  const pad = SIZE * 0.1;
+  const scale = Math.min((SIZE - pad*2) / prodImg.width, (SIZE - pad*2) / prodImg.height);
+  const w = prodImg.width * scale;
+  const h = prodImg.height * scale;
+  const x = (SIZE - w) / 2;
+  const y = (SIZE - h) * 0.55;
+  ctx.drawImage(prodImg, x, y, w, h);
+
+  return canvas.toDataURL('image/png', 0.92);
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
+    img.src = src;
+  });
+}
+
+// ===== ダウンロード =====
+async function dl(url, ts, i) {
+  try {
+    const r = await fetch(url); const b = await r.blob();
+    const a = document.createElement('a'); a.href = URL.createObjectURL(b);
+    a.download = `pictoflow_${ts}_${i}.webp`; a.click();
+  } catch { window.open(url, '_blank'); }
+}
+
+function dlDataUrl(dataUrl, ts, i) {
+  const a = document.createElement('a');
+  a.href = dataUrl; a.download = `pictoflow_${ts}_${i}.png`; a.click();
 }
 </script>
 </body>
