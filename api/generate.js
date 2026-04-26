@@ -3,7 +3,7 @@ export const maxDuration = 60;
 export const config = {
   api: {
     bodyParser: {
-      sizeLimit: '10mb',
+      sizeLimit: '1mb',
     },
   },
 };
@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'API token not configured' });
 
   try {
-    const { prompt, imageBase64, predictionId } = req.body;
+    const { prompt, imageUrl, predictionId } = req.body;
 
     // ポーリングモード
     if (predictionId) {
@@ -39,8 +39,8 @@ export default async function handler(req, res) {
 
     if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
-    if (imageBase64) {
-      return await generateWithBria(token, prompt, imageBase64, res);
+    if (imageUrl) {
+      return await generateWithBria(token, prompt, imageUrl, res);
     } else {
       return await generateWithFlux(token, prompt, res);
     }
@@ -51,9 +51,8 @@ export default async function handler(req, res) {
   }
 }
 
-async function generateWithBria(token, prompt, imageBase64, res) {
-  // Data URLをそのままBriaに渡す
-  console.log('Sending to Bria, image starts with:', imageBase64.slice(0, 50));
+async function generateWithBria(token, prompt, imageUrl, res) {
+  console.log('Sending to Bria with image_url:', imageUrl.slice(0, 80));
 
   const response = await fetch(
     'https://api.replicate.com/v1/models/bria/generate-background/predictions',
@@ -65,7 +64,7 @@ async function generateWithBria(token, prompt, imageBase64, res) {
       },
       body: JSON.stringify({
         input: {
-          ref_image_file: imageBase64,
+          image_url: imageUrl,
           bg_prompt: prompt,
           num_results: 1,
         }
@@ -74,8 +73,7 @@ async function generateWithBria(token, prompt, imageBase64, res) {
   );
 
   const data = await response.json();
-  console.log('Bria status:', response.status);
-  console.log('Bria response:', JSON.stringify(data).slice(0, 300));
+  console.log('Bria status:', response.status, 'id:', data.id);
 
   if (!response.ok) {
     return res.status(500).json({ error: 'Bria API error', detail: data });
