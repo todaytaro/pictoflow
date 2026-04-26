@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
     const response = await fetch(
-      'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions',
+      'https://api.replicate.com/v1/predictions',
       {
         method: 'POST',
         headers: {
@@ -22,11 +22,12 @@ export default async function handler(req, res) {
           'Prefer': 'wait'
         },
         body: JSON.stringify({
+          version: "black-forest-labs/flux-schnell",
           input: {
             prompt,
             num_outputs: 1,
-            aspect_ratio: '1:1',
-            output_format: 'webp',
+            aspect_ratio: "1:1",
+            output_format: "webp",
             output_quality: 90
           }
         })
