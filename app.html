@@ -352,17 +352,31 @@ function handleFile(file) {
   if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
     toast('JPG、PNG、WebP形式のみ対応しています', 'err'); return;
   }
-  if (file.size > 10 * 1024 * 1024) {
-    toast('ファイルサイズは10MB以下にしてください', 'err'); return;
+  if (file.size > 20 * 1024 * 1024) {
+    toast('ファイルサイズは20MB以下にしてください', 'err'); return;
   }
-  uploadedFile = file;
   const reader = new FileReader();
-  reader.onload = e => { document.getElementById('previewImg').src = e.target.result; };
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX = 1500;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(blob => {
+        uploadedFile = new File([blob], file.name, { type: 'image/jpeg' });
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('previewName').textContent = file.name.length > 20 ? file.name.slice(0,20) + '…' : file.name;
+        uploadZone.style.display = 'none';
+        document.getElementById('uploadedPreview').classList.add('show');
+        checkUploadReady();
+      }, 'image/jpeg', 0.85);
+    };
+    img.src = e.target.result;
+  };
   reader.readAsDataURL(file);
-  document.getElementById('previewName').textContent = file.name.length > 20 ? file.name.slice(0,20) + '…' : file.name;
-  uploadZone.style.display = 'none';
-  document.getElementById('uploadedPreview').classList.add('show');
-  checkUploadReady();
 }
 
 function resetUpload() {
