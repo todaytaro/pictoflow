@@ -411,25 +411,35 @@ async function genUpload() {
   document.getElementById('out').innerHTML = `<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
 
   try {
-    // 商品画像をbase64に変換
-    setProgress(10, '画像を準備しています...');
+    // 画像をReplicateにアップロードしてURLを取得
+    setProgress(10, '画像をアップロード中...');
     const imageBase64 = await fileToBase64(uploadedFile);
+    const uploadRes = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg' })
+    });
+    if (!uploadRes.ok) {
+      const e = await uploadRes.json().catch(() => ({}));
+      throw new Error(e.error || '画像のアップロードに失敗しました');
+    }
+    const { imageUrl } = await uploadRes.json();
+    setProgress(25, `背景パターンを生成しています (0/${count})...`);
 
-    // Briaで背景生成（Remove.bg不要・Canvas合成不要）
+    // Briaで背景生成
     const category = document.getElementById('up-category').value;
     const target = document.getElementById('up-target').value;
     const prompts = buildUploadPrompts(category, target, count);
     const results = [];
 
     for (let i = 0; i < prompts.length; i++) {
-      const pct = 10 + ((i + 1) / count) * 85;
+      const pct = 25 + ((i + 1) / count) * 70;
       setProgress(pct - 10, `背景パターンを生成しています (${i}/${count})...`);
 
-      // Briaにリクエスト
       const r = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompts[i].prompt, imageBase64 })
+        body: JSON.stringify({ prompt: prompts[i].prompt, imageUrl })
       });
       let d = await r.json();
 
