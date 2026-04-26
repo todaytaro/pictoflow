@@ -13,21 +13,20 @@ export default async function handler(req, res) {
   try {
     const { prompt, imageBase64, predictionId } = req.body;
 
-    // ポーリングモード: フロントからpredictionIdが来たら状態確認して返す
+    // ポーリングモード
     if (predictionId) {
       const poll = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const pollData = await poll.json();
       console.log('Poll status:', pollData.status);
-
       if (pollData.status === 'succeeded' && pollData.output?.[0]) {
         return res.status(200).json({ url: pollData.output[0] });
       }
       if (pollData.status === 'failed' || pollData.status === 'canceled') {
-        return res.status(500).json({ error: 'Generation failed' });
+        console.log('Poll error:', JSON.stringify(pollData.error));
+        return res.status(500).json({ error: 'Generation failed', detail: pollData.error });
       }
-      // まだ処理中
       return res.status(202).json({ status: pollData.status, predictionId });
     }
 
@@ -45,8 +44,32 @@ export default async function handler(req, res) {
   }
 }
 
-// 商品写真モード: BriaにリクエストしてpredictionIdをすぐ返す
 async function generateWithBria(token, prompt, imageBase64, res) {
+  // base64 → Replicateのファイルアップロードに変換
+  const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+  const imageBuffer = Buffer.from(base64Data, 'base64');
+
+  // Replicate Files APIにアップロード
+  const uploadRes = await fetch('https://api.replicate.com/v1/files', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'image/jpeg',
+    },
+    body: imageBuffer,
+  });
+
+  if (!uploadRes.ok) {
+    const err = await uploadRes.json().catch(() => ({}));
+    console.log('Upload error:', JSON.stringify(err));
+    return res.status(500).json({ error: 'Image upload failed', detail: err });
+  }
+
+  const uploadData = await uploadRes.json();
+  const imageUrl = uploadData.urls?.get || uploadData.url;
+  console.log('Uploaded image URL:', imageUrl);
+
+  // Briaに画像URLで渡す
   const response = await fetch(
     'https://api.replicate.com/v1/models/bria/generate-background/predictions',
     {
@@ -57,7 +80,7 @@ async function generateWithBria(token, prompt, imageBase64, res) {
       },
       body: JSON.stringify({
         input: {
-          image: imageBase64,
+          image: imageUrl,
           prompt: prompt,
           num_results: 1,
         }
@@ -77,7 +100,6 @@ async function generateWithBria(token, prompt, imageBase64, res) {
     return res.status(200).json({ url: data.output[0] });
   }
 
-  // predictionIdをフロントに返してフロント側でポーリングさせる
   if (data.id) {
     return res.status(202).json({ predictionId: data.id });
   }
@@ -85,7 +107,6 @@ async function generateWithBria(token, prompt, imageBase64, res) {
   return res.status(500).json({ error: 'No output', raw: data });
 }
 
-// プロンプトモード: flux-dev
 async function generateWithFlux(token, prompt, res) {
   const response = await fetch(
     'https://api.replicate.com/v1/models/black-forest-labs/flux-dev/predictions',
