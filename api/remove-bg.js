@@ -1,78 +1,46 @@
-/**
- * /api/remove-bg
- * 商品画像の背景をRemove.bg APIで除去する
- * 
- * POST multipart/form-data
- *   image_file: File
- * 
- * Response JSON
- *   { imageBase64: string }  // base64 PNG
- */
-
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   const apiKey = process.env.REMOVE_BG_API_KEY;
-  if (!apiKey) {
-    return res.status(500).json({ error: 'REMOVE_BG_API_KEY が設定されていません' });
-  }
+  if (!apiKey) return res.status(500).json({ error: 'REMOVE_BG_API_KEY が設定されていません' });
 
   try {
-    // Vercel Serverless ではreq.bodyがBufferになるため、
-    // Content-Typeヘッダーをそのままproxyする
-    const contentType = req.headers['content-type'];
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    const bodyBuffer = Buffer.concat(chunks);
 
-    // Remove.bg APIに直接転送
     const removeBgRes = await fetch('https://api.remove.bg/v1.0/removebg', {
       method: 'POST',
       headers: {
         'X-Api-Key': apiKey,
-        'Content-Type': contentType,
+        'Content-Type': req.headers['content-type'],
       },
-      body: req, // Node.js stream として転送
+      body: bodyBuffer,
     });
 
     if (!removeBgRes.ok) {
-      const errText = await removeBgRes.text();
-      console.error('Remove.bg error:', errText);
-
-      // API残高不足の場合
-      if (removeBgRes.status === 402) {
-        return res.status(402).json({ error: 'Remove.bg APIのクレジットが不足しています' });
-      }
-      // レート制限
-      if (removeBgRes.status === 429) {
-        return res.status(429).json({ error: 'リクエストが多すぎます。しばらく待ってから再試行してください' });
-      }
-
-      return res.status(removeBgRes.status).json({
-        error: `背景除去に失敗しました (${removeBgRes.status})`
-      });
+      if (removeBgRes.status === 402) return res.status(402).json({ error: 'Remove.bg のクレジットが不足しています' });
+      if (removeBgRes.status === 429) return res.status(429).json({ error: 'リクエストが多すぎます。少し待ってから再試行してください' });
+      return res.status(removeBgRes.status).json({ error: `背景除去に失敗しました (${removeBgRes.status})` });
     }
 
-    // PNG バイナリを取得
     const buffer = await removeBgRes.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
-    const dataUrl = `data:image/png;base64,${base64}`;
 
     return res.status(200).json({
-      imageBase64: dataUrl,
-      // Remove.bg の残クレジットをログ（デバッグ用）
-      creditsCharged: removeBgRes.headers.get('X-Credits-Charged'),
-      creditsRemaining: removeBgRes.headers.get('X-Credits-Total-Used'),
+      imageBase64: `data:image/png;base64,${base64}`,
     });
 
-  } catch (err) {
-    console.error('remove-bg handler error:', err);
-    return res.status(500).json({ error: 'サーバーエラーが発生しました: ' + err.message });
+  } catch (e) {
+    console.error('remove-bg error:', e.message);
+    return res.status(500).json({ error: e.message });
   }
 }
 
-// Vercel の bodyParser を無効化（multipart/form-data をそのまま転送するため）
 export const config = {
-  api: {
-    bodyParser: false,
-  },
+  api: { bodyParser: false },
 };
