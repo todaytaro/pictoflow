@@ -1,7 +1,7 @@
 export const maxDuration = 60;
 
 export const config = {
-  api: { bodyParser: { sizeLimit: '1mb' } },
+  api: { bodyParser: { sizeLimit: '4mb' } },
 };
 
 export default async function handler(req, res) {
@@ -15,30 +15,48 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'API token not configured' });
 
   try {
-    const { prompt, imageUrl, predictionId } = req.body;
+    const { prompt, input_image, predictionId } = req.body || {};
 
-    // ポーリングモード
+    console.log('[kontext] request received', {
+      hasPrompt: !!prompt,
+      promptLen: prompt ? prompt.length : 0,
+      hasInputImage: !!input_image,
+      inputImageKind: input_image
+        ? (input_image.startsWith('data:') ? 'dataUri' : 'url')
+        : 'none',
+      inputImageBytes: input_image ? input_image.length : 0,
+      predictionId: predictionId || null,
+    });
+
+    // ----- Polling phase -----
     if (predictionId) {
       const poll = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const pollData = await poll.json();
-      console.log('Kontext poll status:', pollData.status);
+      console.log('[kontext] poll', {
+        predictionId,
+        replicateStatus: pollData.status,
+        hasOutput: !!pollData.output,
+      });
+
       if (pollData.status === 'succeeded' && pollData.output) {
         const output = Array.isArray(pollData.output) ? pollData.output[0] : pollData.output;
         return res.status(200).json({ url: output });
       }
       if (pollData.status === 'failed' || pollData.status === 'canceled') {
-        return res.status(500).json({ error: 'Generation failed', detail: pollData.error });
+        return res.status(500).json({
+          error: 'Generation failed',
+          detail: pollData.error || pollData.status,
+        });
       }
       return res.status(202).json({ status: pollData.status, predictionId });
     }
 
-    if (!prompt || !imageUrl) {
-      return res.status(400).json({ error: 'prompt and imageUrl are required' });
+    // ----- Create phase -----
+    if (!prompt || !input_image) {
+      return res.status(400).json({ error: 'prompt and input_image are required' });
     }
-
-    console.log('Kontext request - prompt:', prompt.slice(0, 80), 'imageUrl:', imageUrl.slice(0, 80));
 
     const response = await fetch(
       'https://api.replicate.com/v1/models/black-forest-labs/flux-kontext-pro/predictions',
@@ -51,7 +69,7 @@ export default async function handler(req, res) {
         body: JSON.stringify({
           input: {
             prompt,
-            input_image: imageUrl,
+            input_image,
             output_format: 'png',
             output_quality: 90,
             safety_tolerance: 2,
@@ -61,10 +79,26 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
-    console.log('Kontext status:', response.status, 'id:', data.id);
+    console.log('[kontext] create response', {
+      httpStatus: response.status,
+      predictionId: data.id,
+      replicateStatus: data.status,
+      hasError: !!data.error,
+    });
 
     if (!response.ok) {
-      return res.status(500).json({ error: 'Kontext API error', detail: data });
+      if (response.status === 429) {
+        return res.status(429).json({
+          error: 'Rate limited',
+          retry_after: data?.retry_after || 10,
+          detail: data,
+        });
+      }
+      return res.status(response.status === 422 ? 422 : 502).json({
+        error: 'Kontext API error',
+        status: response.status,
+        detail: data,
+      });
     }
 
     if (data.output) {
@@ -76,10 +110,9 @@ export default async function handler(req, res) {
       return res.status(202).json({ predictionId: data.id });
     }
 
-    return res.status(500).json({ error: 'No output', raw: data });
-
+    return res.status(502).json({ error: 'No output from Replicate', raw: data });
   } catch (e) {
-    console.log('Kontext error:', e.message);
+    console.log('[kontext] exception:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }

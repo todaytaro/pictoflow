@@ -243,8 +243,9 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
     <!-- ===== 起点から派生モード ===== -->
     <div id="mode-kontext" style="display:none;">
       <div class="s-sec">
-        <div class="s-lbl">起点画像のURL</div>
-        <input type="text" class="brand-input" id="kontext-url" placeholder="生成済み画像のURLを貼り付け" style="margin-bottom:8px;">
+        <div class="s-lbl">起点画像</div>
+        <input type="text" class="brand-input" id="kontext-url" placeholder="画像URLを貼り付け（任意）" style="margin-bottom:8px;">
+        <input type="file" id="kontext-file" accept="image/jpeg,image/png,image/webp" style="margin-bottom:8px; font-size:0.78rem;">
         <div id="kontext-preview" style="display:none; margin-top:8px;">
           <img id="kontext-preview-img" src="" style="width:100%; border-radius:8px; display:block;">
           <button onclick="clearKontextImage()" style="margin-top:6px; font-size:0.72rem; color:var(--accent); background:none; border:none; cursor:pointer; font-family:'Noto Sans JP',sans-serif; padding:0;">別の画像を使う</button>
@@ -598,40 +599,115 @@ function fileToBase64(file) {
 }
 
 // ===== 起点から派生モード =====
+// kontextImageData は URL (http(s)://...) または data URI (data:image/...;base64,...) を保持
+let kontextImageData = '';
+
 function setPrompt(text) {
   document.getElementById('kontext-prompt').value = text;
   checkKontextReady();
 }
 
 function clearKontextImage() {
+  kontextImageData = '';
   document.getElementById('kontext-url').value = '';
+  document.getElementById('kontext-file').value = '';
   document.getElementById('kontext-preview').style.display = 'none';
   document.getElementById('kontext-preview-img').src = '';
   checkKontextReady();
 }
 
 function checkKontextReady() {
-  const url = document.getElementById('kontext-url').value.trim();
   const prompt = document.getElementById('kontext-prompt').value.trim();
-  document.getElementById('gb-kontext').disabled = !(url && prompt);
+  document.getElementById('gb-kontext').disabled = !(kontextImageData && prompt);
 }
 
+function setKontextPreview(src) {
+  document.getElementById('kontext-preview-img').src = src;
+  document.getElementById('kontext-preview').style.display = 'block';
+}
+
+// URL入力欄: http(s) URLが貼られたらそれを起点画像にする
 document.getElementById('kontext-url').addEventListener('input', function() {
   const url = this.value.trim();
-  checkKontextReady();
   if (url.startsWith('http')) {
-    document.getElementById('kontext-preview-img').src = url;
-    document.getElementById('kontext-preview').style.display = 'block';
+    kontextImageData = url;
+    setKontextPreview(url);
+    console.log('[kontext] image set from URL', { length: url.length });
+  } else if (!url) {
+    // URL欄が空でファイル選択もない場合のみクリア
+    if (!document.getElementById('kontext-file').value) {
+      kontextImageData = '';
+      document.getElementById('kontext-preview').style.display = 'none';
+    }
+  }
+  checkKontextReady();
+});
+
+// ファイル選択: FileReader で data URI に変換、必要に応じてリサイズ
+document.getElementById('kontext-file').addEventListener('change', async function(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  if (!['image/jpeg','image/png','image/webp'].includes(file.type)) {
+    toast('JPG、PNG、WebP形式のみ対応しています', 'err');
+    this.value = '';
+    return;
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    toast('ファイルサイズは20MB以下にしてください', 'err');
+    this.value = '';
+    return;
+  }
+
+  console.log('[kontext] file selected', { name: file.name, type: file.type, size: file.size });
+
+  try {
+    const dataUri = await fileToDataUriResized(file, 1500, 0.9);
+    kontextImageData = dataUri;
+    document.getElementById('kontext-url').value = ''; // URL欄をクリア
+    setKontextPreview(dataUri);
+    console.log('[kontext] image set from file', { dataUriBytes: dataUri.length });
+    checkKontextReady();
+  } catch (err) {
+    console.error('[kontext] file read error', err);
+    toast('画像の読み込みに失敗しました', 'err');
   }
 });
+
 document.getElementById('kontext-prompt').addEventListener('input', checkKontextReady);
+
+// File を canvas でリサイズして data URI に変換
+function fileToDataUriResized(file, maxEdge, quality) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('FileReader failed'));
+    reader.onload = e => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Image decode failed'));
+      img.onload = () => {
+        const scale = Math.min(1, maxEdge / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        const out = canvas.toDataURL('image/jpeg', quality);
+        console.log('[kontext] resized', { from: `${img.width}x${img.height}`, to: `${w}x${h}`, dataUriBytes: out.length });
+        resolve(out);
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 // 生成結果から「これを起点にする」ボタンを押した時に呼ばれる
 function useAsBase(imageUrl) {
   switchMode('kontext');
+  kontextImageData = imageUrl;
   document.getElementById('kontext-url').value = imageUrl;
-  document.getElementById('kontext-preview-img').src = imageUrl;
-  document.getElementById('kontext-preview').style.display = 'block';
+  document.getElementById('kontext-file').value = '';
+  setKontextPreview(imageUrl);
   checkKontextReady();
   document.querySelector('.sidebar').scrollTop = 0;
   toast('起点画像を設定しました。編集指示を入力してください。', 'ok');
@@ -640,11 +716,18 @@ function useAsBase(imageUrl) {
 async function genKontext() {
   if (credits <= 0) { toast('クレジットがなくなりました', 'err'); return; }
 
-  const imageUrl = document.getElementById('kontext-url').value.trim();
+  const input_image = kontextImageData;
   const prompt = document.getElementById('kontext-prompt').value.trim();
   const count = parseInt(gv('kontext-cnt'));
 
-  if (!imageUrl || !prompt) { toast('画像URLと編集指示を入力してください', 'err'); return; }
+  if (!input_image || !prompt) { toast('起点画像と編集指示の両方を入力してください', 'err'); return; }
+
+  console.log('[kontext] genKontext start', {
+    count,
+    promptLen: prompt.length,
+    imageKind: input_image.startsWith('data:') ? 'dataUri' : 'url',
+    imageBytes: input_image.length,
+  });
 
   const btn = document.getElementById('gb-kontext');
   btn.disabled = true; btn.classList.add('loading');
@@ -655,12 +738,21 @@ async function genKontext() {
 
   try {
     for (let i = 0; i < count; i++) {
-      const r = await fetch('/api/kontext', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, imageUrl })
-      });
-      let d = await r.json();
+      // 429 のときは retry_after 秒待ってリトライ（最大3回）
+      let r, d;
+      for (let createAttempt = 0; createAttempt < 3; createAttempt++) {
+        r = await fetch('/api/kontext', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt, input_image })
+        });
+        d = await r.json();
+        console.log('[kontext] create attempt', { i, createAttempt, httpStatus: r.status, body: d });
+        if (r.status !== 429) break;
+        const wait = ((d.retry_after || 10) + 1) * 1000;
+        document.getElementById('ms').textContent = `生成 ${i+1}/${count}: 連続生成の制限のため ${Math.ceil(wait/1000)} 秒待機中…`;
+        await new Promise(res => setTimeout(res, wait));
+      }
 
       // ポーリング
       if (r.status === 202 && d.predictionId) {
@@ -673,8 +765,9 @@ async function genKontext() {
             body: JSON.stringify({ predictionId: d.predictionId })
           });
           d = await pollRes.json();
+          console.log('[kontext] poll', { i, attempts, httpStatus: pollRes.status, body: d });
           if (d.url) break;
-          if (pollRes.status === 500) throw new Error(d.error || '生成に失敗しました');
+          if (pollRes.status >= 400 && pollRes.status !== 202) throw new Error(d.error || '生成に失敗しました');
           attempts++;
         }
       }
