@@ -65,8 +65,8 @@ async function generateWithBria(token, prompt, imageBase64, res) {
       },
       body: JSON.stringify({
         input: {
-          image: imageBase64,
-          prompt: prompt,
+          ref_image_file: imageBase64,
+          bg_prompt: prompt,
           num_results: 1,
         }
       })
