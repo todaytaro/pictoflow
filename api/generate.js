@@ -19,7 +19,28 @@ export default async function handler(req, res) {
   if (!token) return res.status(500).json({ error: 'API token not configured' });
 
   try {
-    const { prompt } = req.body;
+    const { prompt, predictionId } = req.body || {};
+
+    // Polling mode: client passes back the predictionId until succeeded.
+    if (predictionId) {
+      const poll = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const pollData = await poll.json();
+      console.log('Generate poll status:', pollData.status);
+
+      if (pollData.status === 'succeeded' && pollData.output?.[0]) {
+        return res.status(200).json({ url: pollData.output[0] });
+      }
+      if (pollData.status === 'failed' || pollData.status === 'canceled') {
+        return res.status(500).json({
+          error: 'Generation failed',
+          detail: pollData.error || pollData.status,
+        });
+      }
+      return res.status(202).json({ status: pollData.status, predictionId });
+    }
+
     if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
     const response = await fetch(
@@ -29,7 +50,6 @@ export default async function handler(req, res) {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait=60'
         },
         body: JSON.stringify({
           input: {
@@ -38,49 +58,34 @@ export default async function handler(req, res) {
             aspect_ratio: '1:1',
             output_format: 'webp',
             output_quality: 90,
-            num_inference_steps: 4
-          }
-        })
+            num_inference_steps: 4,
+          },
+        }),
       }
     );
 
     const data = await response.json();
-    console.log('Replicate response status:', response.status);
-    console.log('Replicate response data:', JSON.stringify(data));
+    console.log('Generate create status:', response.status, 'id:', data.id);
 
     if (!response.ok) {
-      return res.status(500).json({
+      return res.status(response.status === 422 ? 422 : 502).json({
         error: 'Replicate API error',
         status: response.status,
-        detail: data
+        detail: data,
       });
     }
 
-    if (data.output && data.output[0]) {
+    if (data.output?.[0]) {
       return res.status(200).json({ url: data.output[0] });
     }
 
     if (data.id) {
-      for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 2000));
-        const poll = await fetch(`https://api.replicate.com/v1/predictions/${data.id}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const pollData = await poll.json();
-        console.log('Poll status:', pollData.status);
-        if (pollData.status === 'succeeded' && pollData.output?.[0]) {
-          return res.status(200).json({ url: pollData.output[0] });
-        }
-        if (pollData.status === 'failed' || pollData.status === 'canceled') {
-          return res.status(500).json({ error: 'Generation failed', detail: pollData.error });
-        }
-      }
-      return res.status(500).json({ error: 'Timeout' });
+      return res.status(202).json({ predictionId: data.id });
     }
 
-    return res.status(500).json({ error: 'No output', raw: data });
+    return res.status(502).json({ error: 'No output from Replicate', raw: data });
   } catch (e) {
-    console.log('Exception:', e.message);
+    console.log('Generate exception:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
