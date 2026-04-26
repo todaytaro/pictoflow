@@ -73,6 +73,7 @@ export default async function handler(req, res) {
             output_format: 'png',
             output_quality: 90,
             safety_tolerance: 2,
+            prompt_upsampling: true,
           }
         })
       }
