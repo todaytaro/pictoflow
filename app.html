@@ -411,39 +411,29 @@ async function genUpload() {
   document.getElementById('out').innerHTML = `<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
 
   try {
-    // Step1: Remove.bg で背景除去
-    const formData = new FormData();
-    formData.append('image_file', uploadedFile);
-    const rbRes = await fetch('/api/remove-bg', { method:'POST', body: formData });
-    if (!rbRes.ok) {
-      const e = await rbRes.json().catch(() => ({}));
-      throw new Error(e.error || '背景除去に失敗しました');
-    }
-    const { imageBase64 } = await rbRes.json();
-    setProgress(25, `背景パターンを生成しています (0/${count})...`);
+    // 商品画像をbase64に変換
+    setProgress(10, '画像を準備しています...');
+    const imageBase64 = await fileToBase64(uploadedFile);
 
-    // Step2: 背景生成 × N枚 → Canvas合成
+    // Briaで背景生成（Remove.bg不要・Canvas合成不要）
     const category = document.getElementById('up-category').value;
     const target = document.getElementById('up-target').value;
     const prompts = buildUploadPrompts(category, target, count);
     const results = [];
 
     for (let i = 0; i < prompts.length; i++) {
-      const pct = 25 + ((i + 1) / count) * 70;
+      const pct = 10 + ((i + 1) / count) * 85;
       setProgress(pct - 10, `背景パターンを生成しています (${i}/${count})...`);
 
       const r = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: prompts[i].prompt })
+        body: JSON.stringify({ prompt: prompts[i].prompt, imageBase64 })
       });
       const d = await r.json();
       if (!d.url) throw new Error(d.error || '画像生成に失敗しました');
 
-      // Canvas で商品PNG + 背景を合成
-      const compositeUrl = await compositeImages(d.url, imageBase64);
-      results.push({ url: compositeUrl, label: prompts[i].label });
-
+      results.push({ url: d.url, label: prompts[i].label });
       setProgress(pct, `背景パターンを生成しています (${i+1}/${count})...`);
     }
 
@@ -457,7 +447,7 @@ async function genUpload() {
         <img src="${r.url}" alt="生成画像${i+1}" loading="lazy">
         <div class="ic-body">
           <span class="ic-lbl">${r.label}</span>
-          <button class="dl-btn" onclick="dlDataUrl('${r.url}',${Date.now()},${i+1})">DL</button>
+          <button class="dl-btn" onclick="dl('${r.url}',${Date.now()},${i+1})">DL</button>
         </div>
       </div>`).join('')}</div>`;
 
@@ -491,35 +481,13 @@ function buildUploadPrompts(category, target, count) {
   return scenes.slice(0, count);
 }
 
-// Canvas合成: 背景URL + 商品base64PNG → data URL
-async function compositeImages(bgUrl, productBase64) {
-  const SIZE = 1024;
-  const canvas = document.createElement('canvas');
-  canvas.width = SIZE; canvas.height = SIZE;
-  const ctx = canvas.getContext('2d');
-
-  const bgImg = await loadImage(bgUrl);
-  ctx.drawImage(bgImg, 0, 0, SIZE, SIZE);
-
-  const prodImg = await loadImage(productBase64);
-  const pad = SIZE * 0.1;
-  const scale = Math.min((SIZE - pad*2) / prodImg.width, (SIZE - pad*2) / prodImg.height);
-  const w = prodImg.width * scale;
-  const h = prodImg.height * scale;
-  const x = (SIZE - w) / 2;
-  const y = (SIZE - h) * 0.55;
-  ctx.drawImage(prodImg, x, y, w, h);
-
-  return canvas.toDataURL('image/png', 0.92);
-}
-
-function loadImage(src) {
+// ファイルをbase64 data URLに変換
+function fileToBase64(file) {
   return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('画像の読み込みに失敗しました'));
-    img.src = src;
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
+    reader.readAsDataURL(file);
   });
 }
 
