@@ -411,19 +411,23 @@ async function genUpload() {
   document.getElementById('out').innerHTML = `<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
 
   try {
-    // 画像をReplicateにアップロードしてURLを取得
+    // 画像をReplicateのFiles APIに直接アップロード
     setProgress(10, '画像をアップロード中...');
-    const imageBase64 = await fileToBase64(uploadedFile);
-    const uploadRes = await fetch('/api/upload', {
+    const replicateToken = await fetch('/api/token').then(r => r.json()).then(d => d.token);
+    const uploadRes = await fetch('https://api.replicate.com/v1/files', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64, mimeType: 'image/jpeg' })
+      headers: {
+        'Authorization': `Bearer ${replicateToken}`,
+        'Content-Type': uploadedFile.type || 'image/jpeg',
+      },
+      body: uploadedFile
     });
     if (!uploadRes.ok) {
       const e = await uploadRes.json().catch(() => ({}));
-      throw new Error(e.error || '画像のアップロードに失敗しました');
+      throw new Error(e.detail || '画像のアップロードに失敗しました');
     }
-    const { imageUrl } = await uploadRes.json();
+    const uploadData = await uploadRes.json();
+    const imageUrl = uploadData.urls?.get || uploadData.url;
     setProgress(25, `背景パターンを生成しています (0/${count})...`);
 
     // Briaで背景生成
