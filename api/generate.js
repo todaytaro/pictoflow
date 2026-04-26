@@ -13,21 +13,20 @@ export default async function handler(req, res) {
     if (!prompt) return res.status(400).json({ error: 'prompt is required' });
 
     const response = await fetch(
-      'https://api.replicate.com/v1/predictions',
+      'https://api.replicate.com/v1/models/black-forest-labs/flux-schnell/predictions',
       {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
-          'Prefer': 'wait'
+          'Prefer': 'wait=60'
         },
         body: JSON.stringify({
-          version: "black-forest-labs/flux-schnell",
           input: {
             prompt,
             num_outputs: 1,
-            aspect_ratio: "1:1",
-            output_format: "webp",
+            aspect_ratio: '1:1',
+            output_format: 'webp',
             output_quality: 90
           }
         })
@@ -35,31 +34,42 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
+    console.log('Replicate response status:', response.status);
+    console.log('Replicate response data:', JSON.stringify(data));
+
+    if (!response.ok) {
+      return res.status(500).json({ 
+        error: 'Replicate API error', 
+        status: response.status,
+        detail: data 
+      });
+    }
 
     if (data.output && data.output[0]) {
       return res.status(200).json({ url: data.output[0] });
     }
 
     if (data.id) {
-      // poll
       for (let i = 0; i < 30; i++) {
         await new Promise(r => setTimeout(r, 2000));
         const poll = await fetch(`https://api.replicate.com/v1/predictions/${data.id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         const pollData = await poll.json();
+        console.log('Poll status:', pollData.status);
         if (pollData.status === 'succeeded' && pollData.output?.[0]) {
           return res.status(200).json({ url: pollData.output[0] });
         }
         if (pollData.status === 'failed' || pollData.status === 'canceled') {
-          return res.status(500).json({ error: 'Generation failed' });
+          return res.status(500).json({ error: 'Generation failed', detail: pollData.error });
         }
       }
       return res.status(500).json({ error: 'Timeout' });
     }
 
-    return res.status(500).json({ error: data.detail || 'Unknown error', raw: data });
+    return res.status(500).json({ error: 'No output', raw: data });
   } catch (e) {
+    console.log('Exception:', e.message);
     return res.status(500).json({ error: e.message });
   }
 }
