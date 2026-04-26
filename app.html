@@ -88,6 +88,8 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
 .progress-bar { height:100%; background:var(--accent); border-radius:4px; transition:width 0.4s ease; width:0%; }
 .progress-label { font-size:0.72rem; color:var(--mid); }
 
+.quick-btn { padding:5px 10px; border:1.5px solid var(--border); border-radius:8px; background:var(--paper); font-family:'Noto Sans JP',sans-serif; font-size:0.72rem; color:var(--mid); cursor:pointer; transition:all 0.15s; }
+.quick-btn:hover { border-color:var(--accent); color:var(--accent); background:#f0f4ff; }
 @keyframes spin { to { transform:rotate(360deg); } }
 @keyframes shimmer { to { background-position:-200% 0; } }
 @media (max-width:768px) { .app-body { flex-direction:column; } .sidebar { width:100%; border-right:none; border-bottom:1px solid var(--border); } }
@@ -111,6 +113,7 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
       <div class="mode-tabs">
         <button class="mode-tab on" id="tab-prompt" onclick="switchMode('prompt')">プロンプト生成</button>
         <button class="mode-tab" id="tab-upload" onclick="switchMode('upload')">商品写真で生成</button>
+        <button class="mode-tab" id="tab-kontext" onclick="switchMode('kontext')">起点から派生</button>
       </div>
     </div>
 
@@ -236,6 +239,49 @@ nav { display:flex; align-items:center; justify-content:space-between; padding:1
       </button>
     </div>
 
+    <!-- ===== 起点から派生モード ===== -->
+    <div id="mode-kontext" style="display:none;">
+      <div class="s-sec">
+        <div class="s-lbl">起点画像のURL</div>
+        <input type="text" class="brand-input" id="kontext-url" placeholder="生成済み画像のURLを貼り付け" style="margin-bottom:8px;">
+        <div id="kontext-preview" style="display:none; margin-top:8px;">
+          <img id="kontext-preview-img" src="" style="width:100%; border-radius:8px; display:block;">
+          <button onclick="clearKontextImage()" style="margin-top:6px; font-size:0.72rem; color:var(--accent); background:none; border:none; cursor:pointer; font-family:'Noto Sans JP',sans-serif; padding:0;">別の画像を使う</button>
+        </div>
+      </div>
+
+      <div class="s-sec">
+        <div class="s-lbl">編集指示</div>
+        <textarea class="brand-input" id="kontext-prompt" rows="4" placeholder="例：背景を夕暮れの海岸に変えて&#10;例：同じキャラクターでポーズを変えて&#10;例：水彩画風にスタイル変換して"></textarea>
+      </div>
+
+      <div class="s-sec">
+        <div class="s-lbl">クイック指示</div>
+        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+          <button class="quick-btn" onclick="setPrompt('背景を白いスタジオ背景に変えて、商品だけ残して')">白背景</button>
+          <button class="quick-btn" onclick="setPrompt('背景をナチュラルな木製テーブルの上に変えて')">木製テーブル</button>
+          <button class="quick-btn" onclick="setPrompt('水彩画風のアートスタイルに変換して')">水彩画風</button>
+          <button class="quick-btn" onclick="setPrompt('同じキャラクター・同じ構図で、背景を夕暮れの海岸に変えて')">夕暮れ海岸</button>
+          <button class="quick-btn" onclick="setPrompt('高級感のある暗い背景に変えて、スポットライト効果を追加して')">高級感</button>
+          <button class="quick-btn" onclick="setPrompt('アニメ・イラスト風のスタイルに変換して')">アニメ風</button>
+        </div>
+      </div>
+
+      <div class="s-sec">
+        <div class="s-lbl">生成枚数</div>
+        <div class="og" id="kontext-cnt">
+          <button class="ob on" data-v="1" onclick="sel(this,'kontext-cnt')">1枚</button>
+          <button class="ob" data-v="2" onclick="sel(this,'kontext-cnt')">2枚</button>
+          <button class="ob" data-v="3" onclick="sel(this,'kontext-cnt')">3枚</button>
+        </div>
+      </div>
+
+      <button class="gen-btn" id="gb-kontext" onclick="genKontext()" disabled>
+        <div class="sp"></div>
+        <span>✦ 派生画像を生成する</span>
+      </button>
+    </div>
+
   </aside>
 
   <main class="main">
@@ -269,11 +315,16 @@ function switchMode(mode) {
   currentMode = mode;
   document.getElementById('mode-prompt').style.display = mode === 'prompt' ? '' : 'none';
   document.getElementById('mode-upload').style.display = mode === 'upload' ? '' : 'none';
+  document.getElementById('mode-kontext').style.display = mode === 'kontext' ? '' : 'none';
   document.getElementById('tab-prompt').classList.toggle('on', mode === 'prompt');
   document.getElementById('tab-upload').classList.toggle('on', mode === 'upload');
-  document.getElementById('ms').textContent = mode === 'prompt'
-    ? '用途・雰囲気を選んでボタンを押すと画像が生成されます'
-    : '商品写真をアップロードして背景を生成します';
+  document.getElementById('tab-kontext').classList.toggle('on', mode === 'kontext');
+  const msgs = {
+    prompt: '用途・雰囲気を選んでボタンを押すと画像が生成されます',
+    upload: '商品写真をアップロードして背景を生成します',
+    kontext: '気に入った画像を起点に、テキスト指示で派生・修正できます'
+  };
+  document.getElementById('ms').textContent = msgs[mode];
 }
 
 // ===== 共通ユーティリティ =====
@@ -322,7 +373,10 @@ async function genPrompt() {
         <img src="${u}" alt="生成画像${i+1}" loading="lazy">
         <div class="ic-body">
           <span class="ic-lbl">${use} #${i+1}</span>
-          <button class="dl-btn" onclick="dl('${u}',${Date.now()},${i+1})">DL</button>
+          <div style="display:flex;gap:6px;">
+            <button class="dl-btn" onclick="dl('${u}',${Date.now()},${i+1})">DL</button>
+            <button class="dl-btn" onclick="useAsBase('${u}')" style="color:var(--accent);border-color:var(--accent);">起点に</button>
+          </div>
         </div>
       </div>`).join('')}</div>`;
     toast(`${count}枚生成しました！`, 'ok');
@@ -517,6 +571,119 @@ function fileToBase64(file) {
     reader.onerror = () => reject(new Error('ファイルの読み込みに失敗しました'));
     reader.readAsDataURL(file);
   });
+}
+
+// ===== 起点から派生モード =====
+function setPrompt(text) {
+  document.getElementById('kontext-prompt').value = text;
+  checkKontextReady();
+}
+
+function clearKontextImage() {
+  document.getElementById('kontext-url').value = '';
+  document.getElementById('kontext-preview').style.display = 'none';
+  document.getElementById('kontext-preview-img').src = '';
+  checkKontextReady();
+}
+
+function checkKontextReady() {
+  const url = document.getElementById('kontext-url').value.trim();
+  const prompt = document.getElementById('kontext-prompt').value.trim();
+  document.getElementById('gb-kontext').disabled = !(url && prompt);
+}
+
+document.getElementById('kontext-url').addEventListener('input', function() {
+  const url = this.value.trim();
+  checkKontextReady();
+  if (url.startsWith('http')) {
+    document.getElementById('kontext-preview-img').src = url;
+    document.getElementById('kontext-preview').style.display = 'block';
+  }
+});
+document.getElementById('kontext-prompt').addEventListener('input', checkKontextReady);
+
+// 生成結果から「これを起点にする」ボタンを押した時に呼ばれる
+function useAsBase(imageUrl) {
+  switchMode('kontext');
+  document.getElementById('kontext-url').value = imageUrl;
+  document.getElementById('kontext-preview-img').src = imageUrl;
+  document.getElementById('kontext-preview').style.display = 'block';
+  checkKontextReady();
+  document.querySelector('.sidebar').scrollTop = 0;
+  toast('起点画像を設定しました。編集指示を入力してください。', 'ok');
+}
+
+async function genKontext() {
+  if (credits <= 0) { toast('クレジットがなくなりました', 'err'); return; }
+
+  const imageUrl = document.getElementById('kontext-url').value.trim();
+  const prompt = document.getElementById('kontext-prompt').value.trim();
+  const count = parseInt(gv('kontext-cnt'));
+
+  if (!imageUrl || !prompt) { toast('画像URLと編集指示を入力してください', 'err'); return; }
+
+  const btn = document.getElementById('gb-kontext');
+  btn.disabled = true; btn.classList.add('loading');
+  document.getElementById('ms').textContent = '派生画像を生成しています...';
+  document.getElementById('out').innerHTML = `<div class="ig">${Array(count).fill('<div class="lc"><div class="li"></div><div class="lb"></div></div>').join('')}</div>`;
+
+  const results = [];
+
+  try {
+    for (let i = 0; i < count; i++) {
+      const r = await fetch('/api/kontext', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, imageUrl })
+      });
+      let d = await r.json();
+
+      // ポーリング
+      if (r.status === 202 && d.predictionId) {
+        let attempts = 0;
+        while (attempts < 60) {
+          await new Promise(res => setTimeout(res, 3000));
+          const pollRes = await fetch('/api/kontext', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ predictionId: d.predictionId })
+          });
+          d = await pollRes.json();
+          if (d.url) break;
+          if (pollRes.status === 500) throw new Error(d.error || '生成に失敗しました');
+          attempts++;
+        }
+      }
+
+      if (!d.url) throw new Error(d.error || '画像生成に失敗しました');
+      results.push(d.url);
+    }
+
+    credits -= count;
+    document.getElementById('cn').textContent = credits;
+    document.getElementById('ms').textContent = `${count}枚の派生画像を生成しました`;
+
+    document.getElementById('out').innerHTML = `<div class="ig">${results.map((u, i) => `
+      <div class="ic">
+        <img src="${u}" alt="派生画像${i+1}" loading="lazy">
+        <div class="ic-body">
+          <span class="ic-lbl">派生 #${i+1}</span>
+          <div style="display:flex;gap:6px;">
+            <button class="dl-btn" onclick="dl('${u}',${Date.now()},${i+1})">DL</button>
+            <button class="dl-btn" onclick="useAsBase('${u}')" style="color:var(--accent);border-color:var(--accent);">起点に</button>
+          </div>
+        </div>
+      </div>`).join('')}</div>`;
+
+    toast(`${count}枚生成しました！`, 'ok');
+  } catch(e) {
+    document.getElementById('ms').textContent = '生成に失敗しました';
+    document.getElementById('out').innerHTML = '<div class="ph"><div class="ph-title">生成に失敗しました</div><div class="ph-sub">もう一度お試しください</div></div>';
+    toast(e.message || '生成に失敗しました', 'err');
+  } finally {
+    btn.disabled = false; btn.classList.remove('loading');
+    checkKontextReady();
+  }
 }
 
 // ===== ダウンロード =====
