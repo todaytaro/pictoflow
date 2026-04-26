@@ -360,7 +360,22 @@ async function genPrompt() {
   try {
     for (let i = 0; i < count; i++) {
       const r = await fetch('/api/generate', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ prompt: buildPrompt() }) });
-      const d = await r.json();
+      let d = await r.json();
+      if (r.status === 202 && d.predictionId) {
+        let attempts = 0;
+        while (attempts < 60) {
+          await new Promise(res => setTimeout(res, 3000));
+          const pollRes = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ predictionId: d.predictionId })
+          });
+          d = await pollRes.json();
+          if (d.url) break;
+          if (pollRes.status >= 400 && pollRes.status !== 202) throw new Error(d.error || '生成に失敗しました');
+          attempts++;
+        }
+      }
       if (d.url) urls.push(d.url);
       else throw new Error(d.error || 'unknown');
     }

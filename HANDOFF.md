@@ -20,14 +20,15 @@
 ```
 pictoflow/
 ├── api/
-│   ├── generate.js     ← プロンプト→flux-schnell生成（動作確認済み）
-│   ├── kontext.js      ← flux-kontext-pro（新規・未テスト）
-│   ├── upload.js       ← 画像アップロード（問題あり・後述）
-│   └── token.js        ← 不要・削除してよい
+│   ├── generate.js     ← プロンプト→flux-schnell生成（ポーリング方式に変更済み）
+│   ├── kontext.js      ← flux-kontext-pro（パラメータはReplicateドキュメントと一致を確認済み・実機テスト未）
+│   └── remove-bg.js    ← remove.bg API（REMOVE_BG_API_KEYが未設定なら500を返す）
 ├── app.html            ← メインアプリUI
 ├── index.html          ← LP
 └── vercel.json         ← ルーティング設定
 ```
+
+> 旧 `api/upload.js` と `api/token.js` は削除済み。
 
 ## 現在の動作状況
 
@@ -44,11 +45,12 @@ pictoflow/
 ## 最優先タスク
 
 ### 1. プロンプト生成の500エラーを解消する
-現在`/api/generate`が断続的に500を返している。
-最新の`generate.js`はflux-schnellを使うシンプルな構成に戻したが、
-まだエラーが出ている。原因不明。ログで確認が必要。
+**対応済み（2026-04-26）**: `Prefer: wait=60` を外し、Replicateの作成APIは即座にpredictionIdだけ返すようにし、
+`maxDuration=60`の関数内で長時間ブロッキングしないよう、クライアント主導のポーリング方式に変更。
+Replicate側のエラー（422など）は500ではなく適切なステータスで返すようにし、ログにstatus/idを残すようにした。
+クライアント (`app.html` の `genPrompt`) もポーリング対応済み。
 
-**確認コマンド**:
+依然として500が出る場合の確認:
 ```bash
 # Vercelのログで確認
 # https://vercel.com/oobakyoutarou-4323s-projects/pictoflow/logs
@@ -62,21 +64,17 @@ pictoflow/
 2. 生成結果の「起点に」ボタンを押す
 3. 「起点から派生」タブで編集指示を入力して生成
 
-**kontext.jsのAPIパラメータ**（要確認）:
+**kontext.jsのAPIパラメータ**（確認済み）:
 ```js
-// flux-kontext-proのReplicateでの正しいパラメータを確認すること
-// 現在の実装:
+// 公式ドキュメント (https://replicate.com/black-forest-labs/flux-kontext-pro/api) と一致
 input: {
   prompt,
-  input_image: imageUrl,  // ← このパラメータ名が正しいか要確認
+  input_image: imageUrl,   // ← パラメータ名OK
   output_format: 'png',
-  output_quality: 90,
-  safety_tolerance: 2,
+  output_quality: 90,      // pngでは無視されるが残しても無害
+  safety_tolerance: 2,     // 0〜6の範囲内
 }
 ```
-
-Replicateの公式ドキュメントで確認:
-https://replicate.com/black-forest-labs/flux-kontext-pro/api
 
 ### 3. 商品写真→背景生成の問題解決（後回し可）
 Briaモデルへの画像アップロード問題。
@@ -121,9 +119,9 @@ Files APIのバイナリ送信がVercelで動かない。
 }
 ```
 
-## Claude Codeへのお願い
-1. まずGitHubのコードを読んで現状を把握してください
-2. `api/generate.js`の500エラーの原因を特定してください
-3. `api/kontext.js`のパラメータをReplicateのドキュメントと照合して修正してください
-4. 「起点から派生」機能をテストして動作確認してください
-5. 不要なファイル（`api/token.js`, `api/upload.js`）は削除してください
+## Claude Codeへのお願い（更新: 2026-04-26）
+1. ~~まずGitHubのコードを読んで現状を把握してください~~ — 完了
+2. ~~`api/generate.js`の500エラーの原因を特定してください~~ — `Prefer: wait` ベースの構成がmaxDurationと競合していた可能性が高いため、ポーリング方式に変更済み
+3. ~~`api/kontext.js`のパラメータをReplicateのドキュメントと照合して修正してください~~ — 公式ドキュメントと一致を確認、修正不要
+4. **未完了**: 「起点から派生」機能をVercel本番でテストして動作確認してください
+5. ~~不要なファイル（`api/token.js`, `api/upload.js`）は削除してください~~ — 既に削除済み（コミット `46b70df`, `b3d3b9f`）
