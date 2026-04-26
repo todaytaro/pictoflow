@@ -27,7 +27,7 @@ export default async function handler(req, res) {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const pollData = await poll.json();
-      console.log('Poll status:', pollData.status);
+      console.log('Poll status:', pollData.status, 'error:', JSON.stringify(pollData.error));
       if (pollData.status === 'succeeded' && pollData.output?.[0]) {
         return res.status(200).json({ url: pollData.output[0] });
       }
@@ -52,39 +52,9 @@ export default async function handler(req, res) {
 }
 
 async function generateWithBria(token, prompt, imageBase64, res) {
-  // data:image/jpeg;base64,XXX... からMIMEとデータを分離
-  const matches = imageBase64.match(/^data:([^;]+);base64,(.+)$/);
-  if (!matches) {
-    return res.status(400).json({ error: 'Invalid image format' });
-  }
-  const mimeType = matches[1];
-  const base64Data = matches[2];
-  const imageBuffer = Buffer.from(base64Data, 'base64');
+  // Data URLをそのままBriaに渡す
+  console.log('Sending to Bria, image starts with:', imageBase64.slice(0, 50));
 
-  console.log('Image buffer size:', imageBuffer.length, 'MIME:', mimeType);
-
-  // Replicate Files APIにアップロード
-  const uploadRes = await fetch('https://api.replicate.com/v1/files', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': mimeType,
-      'Content-Length': String(imageBuffer.length),
-    },
-    body: imageBuffer,
-  });
-
-  const uploadData = await uploadRes.json();
-  console.log('Upload status:', uploadRes.status, JSON.stringify(uploadData).slice(0, 200));
-
-  if (!uploadRes.ok) {
-    return res.status(500).json({ error: 'Image upload failed', detail: uploadData });
-  }
-
-  const imageUrl = uploadData.urls?.get || uploadData.url;
-  console.log('Uploaded image URL:', imageUrl);
-
-  // Briaに画像URLで渡す
   const response = await fetch(
     'https://api.replicate.com/v1/models/bria/generate-background/predictions',
     {
@@ -95,7 +65,7 @@ async function generateWithBria(token, prompt, imageBase64, res) {
       },
       body: JSON.stringify({
         input: {
-          image: imageUrl,
+          image: imageBase64,
           prompt: prompt,
           num_results: 1,
         }
@@ -104,7 +74,8 @@ async function generateWithBria(token, prompt, imageBase64, res) {
   );
 
   const data = await response.json();
-  console.log('Bria status:', response.status, 'id:', data.id);
+  console.log('Bria status:', response.status);
+  console.log('Bria response:', JSON.stringify(data).slice(0, 300));
 
   if (!response.ok) {
     return res.status(500).json({ error: 'Bria API error', detail: data });
