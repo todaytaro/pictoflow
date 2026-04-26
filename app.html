@@ -425,14 +425,32 @@ async function genUpload() {
       const pct = 10 + ((i + 1) / count) * 85;
       setProgress(pct - 10, `背景パターンを生成しています (${i}/${count})...`);
 
+      // Briaにリクエスト
       const r = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: prompts[i].prompt, imageBase64 })
       });
-      const d = await r.json();
-      if (!d.url) throw new Error(d.error || '画像生成に失敗しました');
+      let d = await r.json();
 
+      // フロントでポーリング（Briaは生成に時間がかかるため）
+      if (r.status === 202 && d.predictionId) {
+        let attempts = 0;
+        while (attempts < 60) {
+          await new Promise(res => setTimeout(res, 3000));
+          const pollRes = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ predictionId: d.predictionId })
+          });
+          d = await pollRes.json();
+          if (d.url) break;
+          if (pollRes.status === 500) throw new Error(d.error || '生成に失敗しました');
+          attempts++;
+        }
+      }
+
+      if (!d.url) throw new Error(d.error || '画像生成に失敗しました');
       results.push({ url: d.url, label: prompts[i].label });
       setProgress(pct, `背景パターンを生成しています (${i+1}/${count})...`);
     }
